@@ -12,10 +12,12 @@ class XY_Monte_Carlo:
 
         self.n_dim = 2
         self.h_field = 0
+        self.boltzmann_constant = 1
 
         self.n_particles = n_particles_1d**self.n_dim
         self.state = self.initialize_state()
         self.energy = self.hamiltonian()
+        self.beta = 1 / (self.boltzmann_constant * self.temp)
 
     def shape(self):
         shape_array = []
@@ -51,7 +53,22 @@ class XY_Monte_Carlo:
     def current_state():
         return 0
 
-    def transition():
+    def acceptance_probability(self, energy_update):
+        if energy_update > 0:
+            acceptance = np.exp ** (-self.beta * self.energy_update)
+        else:
+            acceptance = 1
+
+        return acceptance
+
+    def transition(self):
+        particle_index, new_angle = self.trial_one_spin_change()
+        # energy_update = self.energy_change(particle_index, new_angle)
+
+        energy_update = -1
+
+        if self.rng.random() < self.acceptance_probability(energy_update):
+            self.state[*particle_index] = new_angle
         pass
 
     def initialize_state(self):
@@ -61,21 +78,16 @@ class XY_Monte_Carlo:
             initial_state = self.random_state()
         return initial_state
 
-    def one_spin_change(self):
+    def trial_one_spin_change(self):
         new_angle = self.rng.uniform(-np.pi, np.pi)
-        particle_index = tuple(
-            int(i) for i in self.rng.integers(0, self.n_particles_1d, self.n_dim)
-        )
-
-        self.state[particle_index] = new_angle
+        particle_index = self.rng.integers(0, self.n_particles_1d, self.n_dim)
 
         return particle_index, new_angle
 
 
 test = XY_Monte_Carlo(1, 10)
-test.random_state()
 a = test.state.copy()
-test.one_spin_change()
+test.transition()
 b = test.state.copy()
 
 print(a - b)
