@@ -133,10 +133,18 @@ class XY_Monte_Carlo:
 
         return particle_index, new_angle
 
+    def total_magnetisation(self):
+        # Cartesian
+        magnetisation_vectors = np.array([np.cos(self.state), np.sin(self.state)])
+        magnetisation_vector = np.mean(magnetisation_vectors, axis = (1,2))
+        return magnetisation_vector
 
 test = XY_Monte_Carlo(1, 10)
 a = test.state.copy()
 test.transition()
 b = test.state.copy()
 
-print(a - b)
+#print(a - b)
+
+print(test.magnetisation())
+
