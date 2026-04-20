@@ -3,11 +3,12 @@ import matplotlib as plt
 
 
 class XY_Monte_Carlo:
-    def __init__(self, temp, n_particles_1d, external_field=0, all_up=False):
+    def __init__(self, temp, n_particles_1d, external_field=0, all_up=False, seed=None):
         self.temp = temp
         self.n_particles_1d = n_particles_1d
         self.all_up = all_up
-        self.external_field=external_field
+        self.external_field = external_field
+        self.rng = np.random.default_rng(seed=seed)
 
         self.n_dim = 2
         self.h_field = 0
@@ -30,27 +31,26 @@ class XY_Monte_Carlo:
         state = np.full(self.shape(), np.pi, dtype=np.float32)
         return state
 
-
     def hamiltonian(self):
-        for i in range(self.n_particles):
-            energy = 0
-            for j in range(self.n_particles):
+        """for i in range(self.n_particles):
+        energy = 0
+        for j in range(self.n_particles):
 
-                energy += - self.J * np.cos(self.state[i,j]-self.state[i-1,j])
-                energy += - self.J * np.cos(self.state[i,j]-self.state[i,j-1])
+            energy += -self.J * np.cos(self.state[i, j] - self.state[i - 1, j])
+            energy += -self.J * np.cos(self.state[i, j] - self.state[i, j - 1])
 
-                field = self.field[i,j]
-                field_magnitude = np.sqrt(np.dot(field[i,j],field[i,j]))
-                field_angle = np.arctan2(field[i,j])
-                field_magnitude * np.cos(self.state[i,j]-field_angle)
-        return 0    
+            field = self.field[i, j]
+            field_magnitude = np.sqrt(np.dot(field[i, j], field[i, j]))
+            field_angle = np.arctan2(field[i, j])
+            field_magnitude * np.cos(self.state[i, j] - field_angle)"""
+        return 0
 
-    def update_hamiltonian(self, [i,j]):
+    def update_hamiltonian(self, particle_index):
         return 0
 
     def current_state():
         return 0
-    
+
     def transition():
         pass
 
@@ -61,6 +61,22 @@ class XY_Monte_Carlo:
         initial_state = self.random_state()
         return initial_state
 
+    def one_spin_change(self):
+        new_spin_value = self.rng.uniform(-np.pi, np.pi)
+        particle_index = self.rng.integers(0, self.n_particles_1d, self.n_dim)
+        # particle_index = np.random.randint(0, self.n_particles_1d, self.n_dim)
+
+        print(new_spin_value)
+        print(particle_index)
+        self.state[particle_index] = new_spin_value
+
+        return particle_index, new_spin_value
+
 
 test = XY_Monte_Carlo(1, 10)
 test.random_state()
+a = test.state.copy()
+test.one_spin_change()
+b = test.state.copy()
+
+print(a - b)
