@@ -104,7 +104,7 @@ class XY_Monte_Carlo:
 
     def acceptance_probability(self, energy_update):
         if energy_update > 0:
-            acceptance = np.exp ** (-self.beta * self.energy_update)
+            acceptance = np.exp(-self.beta * energy_update)
         else:
             acceptance = 1
 
@@ -112,9 +112,9 @@ class XY_Monte_Carlo:
 
     def transition(self):
         particle_index, new_angle = self.trial_one_spin_change()
-        # energy_update = self.energy_change(particle_index, new_angle)
+        energy_update = self.energy_change(particle_index, new_angle)
 
-        energy_update = -1
+        print(energy_update)
 
         if self.rng.random() < self.acceptance_probability(energy_update):
             self.state[*particle_index] = new_angle
@@ -138,3 +138,5 @@ test = XY_Monte_Carlo(1, 10)
 a = test.state.copy()
 test.transition()
 b = test.state.copy()
+
+print(a - b)
