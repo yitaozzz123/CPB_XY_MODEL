@@ -13,9 +13,15 @@ class XY_Monte_Carlo:
         self.n_dim = 2
         self.h_field = 0
 
+        self.nearest_neighbours = np.array([[0,1], [1,0], [0,-1], [-1,0]], dtype=int)
+        self.J = 1  # natural units, comment on later
+
         self.n_particles = n_particles_1d**self.n_dim
         self.state = self.initialize_state()
         self.energy = self.hamiltonian()
+
+
+        
 
     def shape(self):
         shape_array = []
@@ -32,27 +38,53 @@ class XY_Monte_Carlo:
         return state
 
     def hamiltonian(self):
-        """for i in range(self.n_particles):
         energy = 0
-        for j in range(self.n_particles):
+        # loop over all particles in the x and y direction
+        for i in range(self.n_particles_1d):    
+            for j in range(self.n_particles_1d):
 
-            energy += -self.J * np.cos(self.state[i, j] - self.state[i - 1, j])
-            energy += -self.J * np.cos(self.state[i, j] - self.state[i, j - 1])
+                # nearest neighbour contribution
+                # loop over nearest neighbour
+                for k in range(len(self.nearest_neighbours)):
+                    nearest_neighbour_index = np.mod(np.array([i,j]) + self.nearest_neighbours[k], self.n_particles_1d)
+                    energy += -0.5*self.J * np.cos(self.state[i,j] - self.state[*nearest_neighbour_index])
 
-            field = self.field[i, j]
-            field_magnitude = np.sqrt(np.dot(field[i, j], field[i, j]))
-            field_angle = np.arctan2(field[i, j])
-            field_magnitude * np.cos(self.state[i, j] - field_angle)"""
-        return 0
+                """
+                # external field contribution
+                field = self.field[i, j]
+                field_magnitude = np.sqrt(np.dot(field, field))
+                field_angle = np.arctan2(field)
+                energy += field_magnitude * np.cos(self.state[i, j] - field_angle)
+                """
+        return energy
 
-    def update_hamiltonian(self, particle_index):
-        return 0
+    def energy_change(self, particle_index, new_angle):
+        
+        old_angle = self.state[*particle_index]
+        energy = 0
+
+        # nearest neighbour contribution
+        # loop over nearest neighbour        
+        for k in range(len(self.nearest_neighbours)):
+            nearest_neighbour_index = np.mod(np.array(particle_index) + self.nearest_neighbours[k], self.n_particles_1d)
+            energy -= -0.5*self.J * np.cos(old_angle - self.state[*nearest_neighbour_index])
+            energy += -0.5*self.J * np.cos(new_angle - self.state[*nearest_neighbour_index])
+
+
+        # field contribution
+        """
+        field = self.field[*particle_index]
+        field_magnitude = np.sqrt(np.dot(field, field))
+        field_angle = np.arctan2(field)
+
+        energy -= field_magnitude * np.cos(old_angle - field_angle)
+        energy += field_magnitude * np.cos(new_angle - field_angle)
+        """
+
+        return energy
 
     def current_state():
         return 0
-
-    def transition():
-        pass
 
     def initialize_state(self):
         if self.all_up:
@@ -74,9 +106,8 @@ class XY_Monte_Carlo:
 
 
 test = XY_Monte_Carlo(1, 10)
-test.random_state()
-a = test.state.copy()
-test.one_spin_change()
-b = test.state.copy()
+print(test.energy_change([3,3], np.pi/2))
+print(test.hamiltonian())
 
-print(a - b)
+
+
