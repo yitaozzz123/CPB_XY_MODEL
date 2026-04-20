@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 
 class XY_Monte_Carlo:
@@ -133,10 +133,25 @@ class XY_Monte_Carlo:
 
         return particle_index, new_angle
 
+    def plot(self):
+        if self.n_dim != 2:
+            raise ValueError("Only 2d plot")
+        plt.imshow(self.state, cmap="inferno", vmin=-np.pi, vmax=np.pi)
+        plt.colorbar(label="Value")
 
-test = XY_Monte_Carlo(1, 10)
+        plt.title("State visualization")
+        plt.xlabel("X index")
+        plt.ylabel("Y index")
+
+        plt.show()
+        pass
+
+
+test = XY_Monte_Carlo(1, 100)
 a = test.state.copy()
 test.transition()
 b = test.state.copy()
 
 print(a - b)
+
+test.plot()
