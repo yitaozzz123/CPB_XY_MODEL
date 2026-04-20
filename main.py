@@ -24,11 +24,11 @@ class XY_Monte_Carlo:
         return shape_array
 
     def random_state(self):
-        array = np.random.uniform(-np.pi, np.pi, self.shape())
-        return array
+        initial_state = self.rng.uniform(-np.pi, np.pi, self.shape())
+        return initial_state
 
     def state_all_up(self):
-        state = np.full(self.shape(), np.pi, dtype=np.float32)
+        state = np.full(self.shape(), np.pi / 2)
         return state
 
     def hamiltonian(self):
@@ -57,20 +57,19 @@ class XY_Monte_Carlo:
     def initialize_state(self):
         if self.all_up:
             initial_state = self.state_all_up()
-
-        initial_state = self.random_state()
+        else:
+            initial_state = self.random_state()
         return initial_state
 
     def one_spin_change(self):
-        new_spin_value = self.rng.uniform(-np.pi, np.pi)
-        particle_index = self.rng.integers(0, self.n_particles_1d, self.n_dim)
-        # particle_index = np.random.randint(0, self.n_particles_1d, self.n_dim)
+        new_angle = self.rng.uniform(-np.pi, np.pi)
+        particle_index = tuple(
+            int(i) for i in self.rng.integers(0, self.n_particles_1d, self.n_dim)
+        )
 
-        print(new_spin_value)
-        print(particle_index)
-        self.state[particle_index] = new_spin_value
+        self.state[particle_index] = new_angle
 
-        return particle_index, new_spin_value
+        return particle_index, new_angle
 
 
 test = XY_Monte_Carlo(1, 10)
