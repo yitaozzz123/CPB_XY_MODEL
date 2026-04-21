@@ -3,13 +3,23 @@ import matplotlib.pyplot as plt
 
 
 class XY_Monte_Carlo:
-    def __init__(self, temp, n_particles_1d, external_field=0, all_up=False, seed=None):
+    def __init__(
+        self,
+        temp,
+        n_particles_1d,
+        external_field=0,
+        all_up=False,
+        seed=None,
+        n_iterations=1000,
+    ):
         self.temp = temp
         self.n_particles_1d = n_particles_1d
         self.all_up = all_up
         self.external_field = external_field
         self.rng = np.random.default_rng(seed=seed)
+        self.n_iterations = n_iterations
 
+        self.trasition_counter = 0
         self.n_dim = 2
         self.h_field = 0
         self.boltzmann_constant = 1
@@ -110,7 +120,7 @@ class XY_Monte_Carlo:
 
         return acceptance
 
-    def transition(self):
+    def single_transition(self):
         particle_index, new_angle = self.trial_one_spin_change()
         energy_update = self.energy_change(particle_index, new_angle)
 
@@ -118,6 +128,7 @@ class XY_Monte_Carlo:
 
         if self.rng.random() < self.acceptance_probability(energy_update):
             self.state[*particle_index] = new_angle
+            self.trasition_counter += 1
         pass
 
     def initialize_state(self):
@@ -133,25 +144,90 @@ class XY_Monte_Carlo:
 
         return particle_index, new_angle
 
-    def plot(self):
+    def plot_lattice(self):
         if self.n_dim != 2:
             raise ValueError("Only 2d plot")
-        plt.imshow(self.state, cmap="inferno", vmin=-np.pi, vmax=np.pi)
-        plt.colorbar(label="Value")
 
-        plt.title("State visualization")
-        plt.xlabel("X index")
-        plt.ylabel("Y index")
+        y, x = np.mgrid[0 : self.state.shape[0], 0 : self.state.shape[1]]
 
-        plt.show()
+        u = np.cos(self.state)
+        v = np.sin(self.state)
+
+        self.fig, self.ax = plt.subplots()
+
+        self.q = self.ax.quiver(
+            x,
+            y,
+            u,
+            v,
+            self.state,
+            cmap="twilight",
+            norm=plt.Normalize(-np.pi, np.pi),
+            scale=40,
+            width=0.008,
+        )
+
+        self.cbar = self.fig.colorbar(self.q, ax=self.ax, label="Angle (radians)")
+
+        self.ax.set_title("State visualization")
+        self.ax.set_xlabel("X index")
+        self.ax.set_ylabel("Y index")
+        self.ax.set_aspect("equal")
+
+        return self.fig, self.ax
+
+    def update_animation(self):
+        u = np.cos(self.state)
+        v = np.sin(self.state)
+
+        # aggiorna le frecce
+        self.q.set_UVC(u, v)
+
+        # aggiorna i colori associati
+        self.q.set_array(self.state.ravel())
+
         pass
 
+    def animation(self, frames=1000):
+        self.plot()
 
-test = XY_Monte_Carlo(1, 100)
-a = test.state.copy()
-test.transition()
-b = test.state.copy()
+        for _ in range(frames):
+            self.single_transition()
+            self.update_animation()
+            plt.pause()
 
-print(a - b)
+        self.save_plot()
+        return 0
 
-test.plot()
+    def save_plot_lattice(self, initial: bool):
+        if initial:
+            self.fig.savefig(
+                f"Plot_{self.n_particles_1d}_part_{self.temp}_temp_initialization.pdf"
+            )
+        else:
+            self.fig.savefig(
+                f"Plot_{self.n_particles_1d}_part_{self.temp}_temp_final.pdf"
+            )
+
+    def full_transition(self):
+        for _ in range(self.n_iterations):
+            self.single_transition()
+
+
+def main():
+    temps = np.linspace(0.5, 2.5, 11)
+    particles = [10, 20, 50]
+    test = XY_Monte_Carlo(1, 10, n_iterations=1000000)
+
+    test.plot_lattice()
+    test.save_plot_lattice(initial=True)
+    test.full_transition()
+    test.plot_lattice()
+    test.save_plot_lattice(initial=False)
+    print(f"Done {test.n_iterations} iterations")
+    print(f"Number of successfull transitions: {test.trasition_counter}")
+    print(f"Ratio: {test.trasition_counter/test.n_iterations*100}%")
+
+
+if __name__ == "__main__":
+    main()
