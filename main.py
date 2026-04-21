@@ -325,7 +325,7 @@ def main():
     combinations = list(product(temps, particles))
 
     for T, N in tqdm(combinations, desc="Simulations"):
-        test = XY_Monte_Carlo(T, N, n_iterations=100000)
+        test = XY_Monte_Carlo(T, N, n_iterations=1000000)
 
         test.plot_lattice()
         test.save_plot_lattice(initial=True)
