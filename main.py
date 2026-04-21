@@ -144,6 +144,17 @@ class XY_Monte_Carlo:
 
         return particle_index, new_angle
 
+    def magnetic_moments_cartesian(self):
+        magnetic_moment_vectors = np.array([np.cos(self.state), np.sin(self.state)])
+        return magnetic_moment_vectors
+        # might want to change how this list is ordered later. Currently it is: n_dim, n_particles_1d, n_particles_1d
+
+    def total_magnetisation(self):
+        # Cartesian
+        magnetisation_vectors = self.magnetic_moments_cartesian()
+        magnetisation_vector = np.mean(magnetisation_vectors, axis=(1, 2))
+        return magnetisation_vector
+
     def plot_lattice(self):
         if self.n_dim != 2:
             raise ValueError("Only 2d plot")
