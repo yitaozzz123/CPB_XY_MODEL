@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import deque
+from itertools import product
+from tqdm import tqdm
 
 
 class XY_Monte_Carlo:
@@ -19,10 +22,15 @@ class XY_Monte_Carlo:
         self.rng = np.random.default_rng(seed=seed)
         self.n_iterations = n_iterations
 
-        self.trasition_counter = 0
+        self.transition_counter = 0
         self.n_dim = 2
         self.h_field = 0
         self.boltzmann_constant = 1
+        self.magnetization_data = []
+        self.last_transitions = deque(maxlen=100)
+        self.last_transitions_data = []
+        self.last_magnetizations = deque(maxlen=100)
+        self.last_magnetizations_data = []
 
         self.nearest_neighbours = np.array(
             [[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int
@@ -35,10 +43,7 @@ class XY_Monte_Carlo:
         self.beta = 1 / (self.boltzmann_constant * self.temp)
 
     def shape(self):
-        shape_array = []
-        for i in range(self.n_dim):
-            shape_array.append(self.n_particles_1d)
-        return shape_array
+        return [self.n_particles_1d] * self.n_dim
 
     def random_state(self):
         initial_state = self.rng.uniform(-np.pi, np.pi, self.shape())
@@ -109,9 +114,6 @@ class XY_Monte_Carlo:
 
         return energy
 
-    def current_state():
-        return 0
-
     def acceptance_probability(self, energy_update):
         if energy_update > 0:
             acceptance = np.exp(-self.beta * energy_update)
@@ -124,12 +126,14 @@ class XY_Monte_Carlo:
         particle_index, new_angle = self.trial_one_spin_change()
         energy_update = self.energy_change(particle_index, new_angle)
 
-        print(energy_update)
+        # print(energy_update)
 
         if self.rng.random() < self.acceptance_probability(energy_update):
             self.state[*particle_index] = new_angle
-            self.trasition_counter += 1
-        pass
+            self.transition_counter += 1
+            self.last_transitions.append(1)
+        else:
+            self.last_transitions.append(0)
 
     def initialize_state(self):
         if self.all_up:
@@ -197,47 +201,143 @@ class XY_Monte_Carlo:
         # aggiorna i colori associati
         self.q.set_array(self.state.ravel())
 
-        pass
-
     def animation(self, frames=1000):
-        self.plot()
+        self.plot_lattice()
 
         for _ in range(frames):
             self.single_transition()
             self.update_animation()
-            plt.pause()
+            plt.pause(0.01)
 
-        self.save_plot()
+        self.save_plot_lattice(initial=False)
+        plt.close(self.fig)
         return 0
 
     def save_plot_lattice(self, initial: bool):
         if initial:
-            self.fig.savefig(
-                f"Plot_{self.n_particles_1d}_part_{self.temp}_temp_initialization.pdf"
-            )
+            filename = f"{self.base_filename()}_lattice_initial.pdf"
         else:
-            self.fig.savefig(
-                f"Plot_{self.n_particles_1d}_part_{self.temp}_temp_final.pdf"
-            )
+            filename = f"{self.base_filename()}_lattice_final.pdf"
+
+        self.fig.savefig(filename, bbox_inches="tight")
+        plt.close(self.fig)
+
+    def store_magnetizations(self):
+        magnetization = self.total_magnetisation()
+        magn_module = np.linalg.norm(magnetization)
+
+        self.magnetization_data.append(magn_module)
+        self.last_magnetizations.append(magnetization)
+
+    def store_transition_ratio(self):
+        if len(self.last_transitions) == 100:
+            ratio = sum(self.last_transitions) / 100
+            self.last_transitions_data.append(ratio)
+
+    def store_magnetization_average(self):
+        if len(self.last_magnetizations) == 100:
+            avg_vector = np.mean(np.array(self.last_magnetizations), axis=0)
+            avg_module = np.linalg.norm(avg_vector)
+            self.last_magnetizations_data.append(avg_module)
 
     def full_transition(self):
         for _ in range(self.n_iterations):
             self.single_transition()
+            self.store_magnetizations()
+            self.store_magnetization_average()
+            self.store_transition_ratio()
+
+    def plot_magnetization_data(self, style):
+        if len(self.last_magnetizations_data) == 0:
+            raise ValueError("No magnetization data to plot.")
+
+        x = np.arange(100, 100 + len(self.last_magnetizations_data))
+
+        fig, ax = plt.subplots(figsize=style["figsize"])
+        ax.plot(x, self.last_magnetizations_data, linewidth=style["linewidth"])
+
+        ax.set_title(
+            "Magnetization modulus of mean vector", fontsize=style["title_size"]
+        )
+        ax.set_xlabel("Iteration", fontsize=style["label_size"])
+        ax.set_ylabel("|<M>|", fontsize=style["label_size"])
+        ax.grid(True, alpha=style["grid_alpha"])
+        ax.tick_params(axis="both", labelsize=style["tick_size"])
+
+        fig.tight_layout()
+        fig.savefig(
+            f"{self.base_filename()}_magnetization.pdf",
+            bbox_inches="tight",
+        )
+
+        plt.close(fig)
+
+    def plot_transition_data(self, style):
+        if len(self.last_transitions_data) == 0:
+            raise ValueError("No transition data to plot.")
+
+        x = np.arange(100, 100 + len(self.last_transitions_data))
+
+        fig, ax = plt.subplots(figsize=style["figsize"])
+        ax.plot(x, self.last_transitions_data, linewidth=style["linewidth"])
+
+        ax.set_title(
+            "Acceptance ratio in the last 100 iterations", fontsize=style["title_size"]
+        )
+        ax.set_xlabel("Iteration", fontsize=style["label_size"])
+        ax.set_ylabel("Ratio", fontsize=style["label_size"])
+        ax.set_ylim(0, 1)
+        ax.grid(True, alpha=style["grid_alpha"])
+        ax.tick_params(axis="both", labelsize=style["tick_size"])
+
+        fig.tight_layout()
+        fig.savefig(
+            f"{self.base_filename()}_transitions.pdf",
+            bbox_inches="tight",
+        )
+
+        plt.close(fig)
+
+    def plot_stored_data(self):
+        style = {
+            "figsize": (10, 4),
+            "linewidth": 1.8,
+            "title_size": 14,
+            "label_size": 12,
+            "tick_size": 10,
+            "grid_alpha": 0.3,
+        }
+
+        if len(self.last_magnetizations_data) > 0:
+            self.plot_magnetization_data(style)
+
+        if len(self.last_transitions_data) > 0:
+            self.plot_transition_data(style)
+
+    def base_filename(self):
+        return f"T_{self.temp:04.2f}_N_{self.n_particles_1d:03d}"
 
 
 def main():
     temps = np.linspace(0.5, 2.5, 11)
     particles = [10, 20, 50]
-    test = XY_Monte_Carlo(1, 10, n_iterations=1000000)
 
-    test.plot_lattice()
-    test.save_plot_lattice(initial=True)
-    test.full_transition()
-    test.plot_lattice()
-    test.save_plot_lattice(initial=False)
-    print(f"Done {test.n_iterations} iterations")
-    print(f"Number of successfull transitions: {test.trasition_counter}")
-    print(f"Ratio: {test.trasition_counter/test.n_iterations*100}%")
+    combinations = list(product(temps, particles))
+
+    for T, N in tqdm(combinations, desc="Simulations"):
+        test = XY_Monte_Carlo(T, N, n_iterations=100000)
+
+        test.plot_lattice()
+        test.save_plot_lattice(initial=True)
+
+        test.full_transition()
+
+        test.plot_lattice()
+        test.save_plot_lattice(initial=False)
+
+        test.plot_stored_data()
+
+    print("Done all simulations")
 
 
 if __name__ == "__main__":
