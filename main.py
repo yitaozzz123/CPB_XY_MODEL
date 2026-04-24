@@ -318,7 +318,7 @@ class XY_Monte_Carlo:
         return f"T_{self.temp:04.2f}_N_{self.n_particles_1d:03d}"
 
 
-def main():
+def experiment_1():
     temps = np.linspace(0.5, 2.5, 11)
     particles = [10, 20, 50]
 
@@ -337,7 +337,12 @@ def main():
 
         test.plot_stored_data()
 
-    print("Done all simulations")
+    print("Done all simulations for experiment 1")
+
+
+def main():
+    # experiment_1()
+    return 0
 
 
 if __name__ == "__main__":
