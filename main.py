@@ -222,6 +222,9 @@ class XY_Monte_Carlo:
         self.fig.savefig(filename, bbox_inches="tight")
         plt.close(self.fig)
 
+    # stores magnetizations inside a list:
+    #   self.magnetization_data stores the module of the total magnetization for each timestep
+    #   self.last_magnetization stores the cartesian vector
     def store_magnetizations(self):
         magnetization = self.total_magnetisation()
         magn_module = np.linalg.norm(magnetization)
@@ -234,6 +237,7 @@ class XY_Monte_Carlo:
             ratio = sum(self.last_transitions) / 100
             self.last_transitions_data.append(ratio)
 
+    # it stores the average of the last 100 timesteps
     def store_magnetization_average(self):
         if len(self.last_magnetizations) == 100:
             avg_vector = np.mean(np.array(self.last_magnetizations), axis=0)
