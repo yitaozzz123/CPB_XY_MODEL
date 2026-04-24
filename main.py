@@ -27,9 +27,9 @@ class XY_Monte_Carlo:
         self.h_field = 0
         self.boltzmann_constant = 1
         self.magnetization_data = []
-        self.last_transitions = deque(maxlen=100)
+        self.last_transitions = deque(maxlen=self.n_particles)
         self.last_transitions_data = []
-        self.last_magnetizations = deque(maxlen=100)
+        self.last_magnetizations = deque(maxlen=self.n_particles)
         self.last_magnetizations_data = []
 
         self.nearest_neighbours = np.array(
