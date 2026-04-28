@@ -23,14 +23,17 @@ class XY_Monte_Carlo:
         self.n_iterations = n_iterations
 
         self.transition_counter = 0
+        self.energy_per_spin = 0
         self.n_dim = 2
         self.h_field = 0
         self.boltzmann_constant = 1
         self.magnetization_data = []
-        self.last_transitions = deque(maxlen=self.n_particles)
+        self.last_transitions = deque(maxlen=self.n_particles)  # tau
         self.last_transitions_data = []
-        self.last_magnetizations = deque(maxlen=self.n_particles)
+        self.last_magnetizations = deque(maxlen=self.n_particles)  # tau
         self.last_magnetizations_data = []
+        self.last_energy_per_spin = deque(maxlen=self.n_particles)  # tau
+        self.last_energy = deque(maxlen=self.n_particles)  # tau
 
         self.nearest_neighbours = np.array(
             [[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int
@@ -320,6 +323,20 @@ class XY_Monte_Carlo:
 
     def base_filename(self):
         return f"T_{self.temp:04.2f}_N_{self.n_particles_1d:03d}"
+
+    def compute_and_store_energy_per_spin(self):
+        self.energy_per_spin = self.energy / self.n_particles
+        self.last_energy_per_spin.append(self.energy_per_spin)
+
+    def compute_chi_M(self):
+        var_M = np.var(self.last_magnetizations)
+        chi_M = self.beta * var_M / self.n_particles
+        return chi_M
+
+    def compute_C(self):
+        var_E = np.var(self.last_energy)
+        C = self.beta * var_E / (self.n_particles * self.temp)
+        return C
 
 
 def experiment_1():
