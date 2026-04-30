@@ -22,9 +22,10 @@ class XY_Monte_Carlo:
         self.rng = np.random.default_rng(seed=seed)
         self.n_iterations = n_iterations
 
+        self.n_dim = 2
+        self.n_particles = n_particles_1d**self.n_dim
         self.transition_counter = 0
         self.energy_per_spin = 0
-        self.n_dim = 2
         self.h_field = 0
         self.boltzmann_constant = 1
         self.magnetization_data = []
@@ -40,7 +41,6 @@ class XY_Monte_Carlo:
         )
         self.J = 1  # natural units, comment on later
 
-        self.n_particles = n_particles_1d**self.n_dim
         self.state = self.initialize_state()
         self.energy = self.hamiltonian()
         self.beta = 1 / (self.boltzmann_constant * self.temp)
@@ -328,6 +328,28 @@ class XY_Monte_Carlo:
         self.energy_per_spin = self.energy / self.n_particles
         self.last_energy_per_spin.append(self.energy_per_spin)
 
+    def autocorrelation(self, sweep_index):
+        magnetisations = np.array(self.magnetization_data)
+        number_sweeps = len(magnetisations) - sweep_index
+        autocorrelation = np.trapezoid(magnetisations[:number_sweeps]*magnetisations[sweep_index:])/number_sweeps
+        autocorrelation -= np.trapezoid(magnetisations[:number_sweeps])*np.trapezoid(magnetisations[sweep_index:])*number_sweeps**-2
+        return autocorrelation
+
+    def autocorrelation_time(self):
+        autocorrelation0 = self.autocorrelation(0)
+        autocorrelation=autocorrelation0
+        correlation_time = 0
+        sweep_index = 0
+        sweep_max = len(self.magnetization_data)
+        #print(sweep_max, "sweep max")
+        while (autocorrelation > 0) and (sweep_index < sweep_max):
+            autocorrelation = self.autocorrelation(sweep_index)
+            sweep_index += 1
+            correlation_time += autocorrelation/autocorrelation0
+            #print(autocorrelation, sweep_index)
+        return correlation_time
+
+
     def compute_chi_M(self):
         var_M = np.var(self.last_magnetizations)
         chi_M = self.beta * var_M / self.n_particles
@@ -361,10 +383,15 @@ def experiment_1():
     print("Done all simulations for experiment 1")
 
 
-def main():
-    # experiment_1()
-    return 0
+def experiment_2(): # I use for testing if correlation time works
+    test = XY_Monte_Carlo(1, 10, n_iterations = 10000)
+    #for i in range(1000):
+    #    test.single_transition()
+    test.full_transition()
+    print(len(test.magnetization_data))
+
+    print(test.autocorrelation_time())
 
 
-if __name__ == "__main__":
-    main()
+experiment_2()
+
