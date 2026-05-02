@@ -5,6 +5,11 @@ from plots import save_lattice_plot, save_stored_plots
 from data import SimulationData
 from storage import save_simulation_data
 from paths import simulation_data_filename
+from cross_analysis import (
+    analyze_data_folder,
+    save_analysis_summary,
+    make_standard_plots,
+)
 
 
 class XY_Monte_Carlo:
@@ -214,7 +219,7 @@ def simulation_metadata(model):
         "temp": model.temp,
         "n_particles_1d": model.n_particles_1d,
         "n_particles": model.n_particles,
-        "n_sweeps": model.n_iterations,
+        "n_sweeps": model.n_sweeps,
         "beta": model.beta,
         "J": model.J,
         "external_field": model.external_field,
@@ -223,13 +228,18 @@ def simulation_metadata(model):
 
 
 def experiment_1():
-    temps = np.linspace(0.5, 2.5, 11)
+    temps = np.arange(0.5, 2.5 + 0.001, 0.2)
     particles = [10, 20, 50]
 
     combinations = list(product(temps, particles))
 
-    for T, N in tqdm(combinations, desc="Simulations"):
-        model = XY_Monte_Carlo(T, N, n_sweeps=1000000)
+    for T, N in tqdm(combinations, desc="No-field simulations"):
+        model = XY_Monte_Carlo(
+            temp=T,
+            n_particles_1d=N,
+            external_field=0,
+            n_sweeps=5000,
+        )
 
         save_lattice_plot(model, initial=True)
 
@@ -238,15 +248,13 @@ def experiment_1():
         save_lattice_plot(model, initial=False)
         save_stored_plots(model, data)
 
-        metadata = simulation_metadata(model)
-
         save_simulation_data(
             filename=simulation_data_filename(model),
             data=data,
-            metadata=metadata,
+            metadata=simulation_metadata(model),
         )
 
-    print("Done all simulations for experiment 1")
+    print("Done all no-field simulations")
 
 
 def experiment_2():
@@ -280,19 +288,62 @@ def experiment_3():
 
     save_lattice_plot(model, initial=False)
     save_stored_plots(model, data)
-    metadata = {
-        "temp": model.temp,
-        "n_particles_1d": model.n_particles_1d,
-        "n_particles": model.n_particles,
-        "n_iterations": model.n_iterations,
-        "beta": model.beta,
-        "J": model.J,
-        "external_field": model.external_field,
-        "all_up": model.all_up,
-    }
+
+    metadata = simulation_metadata(model)
+
     save_simulation_data(
-        filename=simulation_data_filename(model), data=data, metadata=metadata
+        filename=simulation_data_filename(model),
+        data=data,
+        metadata=metadata,
     )
 
 
-experiment_3()
+from analysis import autocorrelation_time
+
+
+def tau_test():
+    temps = np.arange(0.5, 2.5 + 0.001, 0.2)
+    N = 50
+    n_sweeps = 5000
+
+    for T in temps:
+        model = XY_Monte_Carlo(
+            temp=T,
+            n_particles_1d=N,
+            external_field=0,
+            n_sweeps=n_sweeps,
+        )
+
+        data = model.full_transition()
+
+        tau = autocorrelation_time(data.magnetization_data)
+
+        print(
+            f"T={T:.2f}, "
+            f"N={N}, "
+            f"tau={tau:.2f} sweeps, "
+            f"block_size={int(16 * tau)}"
+        )
+
+
+def analyze_no_field_results():
+    results = analyze_data_folder("data")
+
+    summary_file = "analysis/summary_no_field.csv"
+
+    save_analysis_summary(
+        results,
+        filename=summary_file,
+    )
+
+    make_standard_plots(
+        summary_file=summary_file,
+        output_folder="analysis_plots/no_field",
+    )
+
+    print("Done no-field analysis")
+
+
+if __name__ == "__main__":
+    experiment_1()
+    analyze_no_field_results()
