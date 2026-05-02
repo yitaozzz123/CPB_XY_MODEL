@@ -28,17 +28,17 @@ class XY_Monte_Carlo:
         self.energy_per_spin = 0
         self.h_field = 0
         self.boltzmann_constant = 1
+
         self.magnetization_data = []
-        self.last_transitions = deque(maxlen=self.n_particles)  # tau
+        self.window_transitions = deque(maxlen=self.n_particles)  # tau
         self.last_transitions_data = []
-        self.last_magnetizations = deque(maxlen=self.n_particles)  # tau
+        self.window_magnetizations_vector = deque(maxlen=self.n_particles)  # tau
         self.last_magnetizations_data = []
         self.last_energy_per_spin = deque(maxlen=self.n_particles)  # tau
         self.last_energy = deque(maxlen=self.n_particles)  # tau
 
-        self.nearest_neighbours = np.array(
-            [[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int
-        )
+        self.nearest_neighbours = self.define_near_neigh()
+
         self.J = 1  # natural units, comment on later
 
         self.state = self.initialize_state()
@@ -48,6 +48,9 @@ class XY_Monte_Carlo:
     def shape(self):
         return [self.n_particles_1d] * self.n_dim
 
+    #######################################################
+    # State initialization functions
+
     def random_state(self):
         initial_state = self.rng.uniform(-np.pi, np.pi, self.shape())
         return initial_state
@@ -56,6 +59,15 @@ class XY_Monte_Carlo:
         state = np.full(self.shape(), np.pi / 2)
         return state
 
+    def initialize_state(self):
+        if self.all_up:
+            initial_state = self.state_all_up()
+        else:
+            initial_state = self.random_state()
+        return initial_state
+
+    ###############################################################################
+    # Total energy
     def hamiltonian(self):
         energy = 0
         # loop over all particles in the x and y direction
@@ -85,6 +97,41 @@ class XY_Monte_Carlo:
                 energy += field_magnitude * np.cos(self.state[i, j] - field_angle)
                 """
         return energy
+
+    def define_near_neigh(self):
+        return np.array([[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int)
+
+    #########################################################
+    """In this set of functions, the transition between two configuration that differs of only one spin is handled
+        following the Metropolis-Hastings algorithm:
+
+        - single_transition: compute if the transition happens
+        - trial_one_spin_change: decides which element of the lattice 
+            we want to change + the value
+        - energy change: computes the difference between the two different 
+            configuration of spins without computing the complete hamiltonian
+        - acceptance probability: computes the probability of the transition following 
+            Metropolis-Hastings algorithm
+    """
+
+    def single_transition(self):
+        particle_index, new_angle = self.trial_one_spin_change()
+        energy_update = self.energy_change(particle_index, new_angle)
+
+        # print(energy_update)
+
+        if self.rng.random() < self.acceptance_probability(energy_update):
+            self.state[*particle_index] = new_angle
+            self.transition_counter += 1
+            self.window_transitions.append(1)
+        else:
+            self.window_transitions.append(0)
+
+    def trial_one_spin_change(self):
+        new_angle = self.rng.uniform(-np.pi, np.pi)
+        particle_index = self.rng.integers(0, self.n_particles_1d, self.n_dim)
+
+        return particle_index, new_angle
 
     def energy_change(self, particle_index, new_angle):
 
@@ -125,31 +172,7 @@ class XY_Monte_Carlo:
 
         return acceptance
 
-    def single_transition(self):
-        particle_index, new_angle = self.trial_one_spin_change()
-        energy_update = self.energy_change(particle_index, new_angle)
-
-        # print(energy_update)
-
-        if self.rng.random() < self.acceptance_probability(energy_update):
-            self.state[*particle_index] = new_angle
-            self.transition_counter += 1
-            self.last_transitions.append(1)
-        else:
-            self.last_transitions.append(0)
-
-    def initialize_state(self):
-        if self.all_up:
-            initial_state = self.state_all_up()
-        else:
-            initial_state = self.random_state()
-        return initial_state
-
-    def trial_one_spin_change(self):
-        new_angle = self.rng.uniform(-np.pi, np.pi)
-        particle_index = self.rng.integers(0, self.n_particles_1d, self.n_dim)
-
-        return particle_index, new_angle
+    ####################################################################################
 
     def magnetic_moments_cartesian(self):
         magnetic_moment_vectors = np.array([np.cos(self.state), np.sin(self.state)])
@@ -194,28 +217,6 @@ class XY_Monte_Carlo:
 
         return self.fig, self.ax
 
-    def update_animation(self):
-        u = np.cos(self.state)
-        v = np.sin(self.state)
-
-        # aggiorna le frecce
-        self.q.set_UVC(u, v)
-
-        # aggiorna i colori associati
-        self.q.set_array(self.state.ravel())
-
-    def animation(self, frames=1000):
-        self.plot_lattice()
-
-        for _ in range(frames):
-            self.single_transition()
-            self.update_animation()
-            plt.pause(0.01)
-
-        self.save_plot_lattice(initial=False)
-        plt.close(self.fig)
-        return 0
-
     def save_plot_lattice(self, initial: bool):
         if initial:
             filename = f"{self.base_filename()}_lattice_initial.pdf"
@@ -233,19 +234,7 @@ class XY_Monte_Carlo:
         magn_module = np.linalg.norm(magnetization)
 
         self.magnetization_data.append(magn_module)
-        self.last_magnetizations.append(magnetization)
-
-    def store_transition_ratio(self):
-        if len(self.last_transitions) == 100:
-            ratio = sum(self.last_transitions) / 100
-            self.last_transitions_data.append(ratio)
-
-    # it stores the average of the last 100 timesteps
-    def store_magnetization_average(self):
-        if len(self.last_magnetizations) == 100:
-            avg_vector = np.mean(np.array(self.last_magnetizations), axis=0)
-            avg_module = np.linalg.norm(avg_vector)
-            self.last_magnetizations_data.append(avg_module)
+        self.window_magnetizations_vector.append(magnetization)
 
     def full_transition(self):
         for _ in range(self.n_iterations):
@@ -253,6 +242,20 @@ class XY_Monte_Carlo:
             self.store_magnetizations()
             self.store_magnetization_average()
             self.store_transition_ratio()
+
+    def store_transition_ratio(self):
+        if len(self.window_transitions) == 100:
+            ratio = sum(self.window_transitions) / 100
+            self.last_transitions_data.append(ratio)
+        # it stores the average of the last 100 timesteps
+
+    def store_magnetization_average(self):
+        if len(self.window_magnetizations_vector) == 100:
+            avg_magnetization = np.mean(
+                np.array(self.window_magnetizations_vector), axis=0
+            )
+            avg_module_magnetization = np.linalg.norm(avg_magnetization)
+            self.last_magnetizations_data.append(avg_module_magnetization)
 
     def plot_magnetization_data(self, style):
         if len(self.last_magnetizations_data) == 0:
@@ -331,24 +334,30 @@ class XY_Monte_Carlo:
     def autocorrelation(self, sweep_index):
         magnetisations = np.array(self.magnetization_data)
         number_sweeps = len(magnetisations) - sweep_index
-        autocorrelation = np.trapezoid(magnetisations[:number_sweeps]*magnetisations[sweep_index:])/number_sweeps
-        autocorrelation -= np.trapezoid(magnetisations[:number_sweeps])*np.trapezoid(magnetisations[sweep_index:])*number_sweeps**-2
+        autocorrelation = (
+            np.trapezoid(magnetisations[:number_sweeps] * magnetisations[sweep_index:])
+            / number_sweeps
+        )
+        autocorrelation -= (
+            np.trapezoid(magnetisations[:number_sweeps])
+            * np.trapezoid(magnetisations[sweep_index:])
+            * number_sweeps**-2
+        )
         return autocorrelation
 
     def autocorrelation_time(self):
         autocorrelation0 = self.autocorrelation(0)
-        autocorrelation=autocorrelation0
+        autocorrelation = autocorrelation0
         correlation_time = 0
         sweep_index = 0
         sweep_max = len(self.magnetization_data)
-        #print(sweep_max, "sweep max")
+        # print(sweep_max, "sweep max")
         while (autocorrelation > 0) and (sweep_index < sweep_max):
             autocorrelation = self.autocorrelation(sweep_index)
             sweep_index += 1
-            correlation_time += autocorrelation/autocorrelation0
-            #print(autocorrelation, sweep_index)
+            correlation_time += autocorrelation / autocorrelation0
+            # print(autocorrelation, sweep_index)
         return correlation_time
-
 
     def compute_chi_M(self):
         var_M = np.var(self.last_magnetizations)
@@ -383,9 +392,9 @@ def experiment_1():
     print("Done all simulations for experiment 1")
 
 
-def experiment_2(): # I use for testing if correlation time works
-    test = XY_Monte_Carlo(1, 10, n_iterations = 10000)
-    #for i in range(1000):
+def experiment_2():  # I use for testing if correlation time works
+    test = XY_Monte_Carlo(1, 10, n_iterations=10000)
+    # for i in range(1000):
     #    test.single_transition()
     test.full_transition()
     print(len(test.magnetization_data))
@@ -394,4 +403,3 @@ def experiment_2(): # I use for testing if correlation time works
 
 
 experiment_2()
-
