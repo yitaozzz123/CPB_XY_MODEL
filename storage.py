@@ -9,6 +9,9 @@ def save_simulation_data(filename, data, metadata):
         acceptance_ratio=np.array(data.acceptance_ratio),
         energy=np.array(data.energy),
         energy_per_spin=np.array(data.energy_per_spin),
+        n_vortices=np.array(data.n_vortices),
+        n_antivortices=np.array(data.n_antivortices),
+        vortex_density=np.array(data.vortex_density),
         metadata=np.array(metadata, dtype=object),
     )
 

@@ -1,6 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from collections import deque
 from itertools import product
 from tqdm import tqdm
 from plots import save_lattice_plot, save_stored_plots
@@ -25,6 +23,7 @@ class XY_Monte_Carlo:
         self.external_field = external_field
         self.rng = np.random.default_rng(seed=seed)
         self.n_iterations = n_iterations
+        self.n_sweeps = n_iterations
 
         self.n_dim = 2
         self.n_particles = n_particles_1d**self.n_dim
@@ -181,18 +180,28 @@ class XY_Monte_Carlo:
         magnetisation_vector = np.mean(magnetisation_vectors, axis=(1, 2))
         return magnetisation_vector
 
+    def sweep_of_transitions(self):
+        accepted_count = 0
+
+        for _ in range(self.n_particles):
+            accepted = self.single_transition()
+            accepted_count += int(accepted)
+
+        return accepted_count / self.n_particles
+
     def full_transition(self):
         data = SimulationData(window_size=self.n_particles)
 
-        for _ in range(self.n_iterations):
-            accepted = self.single_transition()
+        for _ in range(self.n_sweeps):
+            acceptance_ratio = self.sweep_of_transitions()
             magnetization = self.total_magnetisation()
 
             data.store_step(
-                accepted=accepted,
+                acceptance_ratio=acceptance_ratio,
                 magnetization=magnetization,
                 energy=self.energy,
                 n_particles=self.n_particles,
+                state=self.state,
             )
 
         return data
@@ -200,43 +209,18 @@ class XY_Monte_Carlo:
     def base_filename(self):
         return f"T_{self.temp:04.2f}_N_{self.n_particles_1d:03d}"
 
-    def autocorrelation(self, sweep_index):
-        magnetisations = np.array(self.magnetization_data)
-        number_sweeps = len(magnetisations) - sweep_index
-        autocorrelation = (
-            np.trapezoid(magnetisations[:number_sweeps] * magnetisations[sweep_index:])
-            / number_sweeps
-        )
-        autocorrelation -= (
-            np.trapezoid(magnetisations[:number_sweeps])
-            * np.trapezoid(magnetisations[sweep_index:])
-            * number_sweeps**-2
-        )
-        return autocorrelation
 
-    def autocorrelation_time(self):
-        autocorrelation0 = self.autocorrelation(0)
-        autocorrelation = autocorrelation0
-        correlation_time = 0
-        sweep_index = 0
-        sweep_max = len(self.magnetization_data)
-        # print(sweep_max, "sweep max")
-        while (autocorrelation > 0) and (sweep_index < sweep_max):
-            autocorrelation = self.autocorrelation(sweep_index)
-            sweep_index += 1
-            correlation_time += autocorrelation / autocorrelation0
-            # print(autocorrelation, sweep_index)
-        return correlation_time
-
-    def compute_chi_M(self):
-        var_M = np.var(self.last_magnetizations)
-        chi_M = self.beta * var_M / self.n_particles
-        return chi_M
-
-    def compute_C(self):
-        var_E = np.var(self.last_energy)
-        C = self.beta * var_E / (self.n_particles * self.temp)
-        return C
+def simulation_metadata(model):
+    return {
+        "temp": model.temp,
+        "n_particles_1d": model.n_particles_1d,
+        "n_particles": model.n_particles,
+        "n_sweeps": model.n_iterations,
+        "beta": model.beta,
+        "J": model.J,
+        "external_field": model.external_field,
+        "all_up": model.all_up,
+    }
 
 
 def experiment_1():
@@ -255,16 +239,7 @@ def experiment_1():
         save_lattice_plot(model, initial=False)
         save_stored_plots(model, data)
 
-        metadata = {
-            "temp": model.temp,
-            "n_particles_1d": model.n_particles_1d,
-            "n_particles": model.n_particles,
-            "n_iterations": model.n_iterations,
-            "beta": model.beta,
-            "J": model.J,
-            "external_field": model.external_field,
-            "all_up": model.all_up,
-        }
+        metadata = simulation_metadata(model)
 
         save_simulation_data(
             filename=simulation_data_filename(model),
@@ -275,14 +250,26 @@ def experiment_1():
     print("Done all simulations for experiment 1")
 
 
-def experiment_2():  # I use for testing if correlation time works
-    test = XY_Monte_Carlo(1, 10, n_iterations=10000)
-    # for i in range(1000):
-    #    test.single_transition()
-    test.full_transition()
-    print(len(test.magnetization_data))
+def experiment_2():
+    model = XY_Monte_Carlo(1.0, 10, n_iterations=10000)
 
-    print(test.autocorrelation_time())
+    data = model.full_transition()
+
+    print(f"Number of saved sweeps: {len(data.magnetization_data)}")
+    print(f"Final energy per spin: {data.energy_per_spin[-1]}")
+    print(f"Final magnetization: {data.magnetization_data[-1]}")
+    print(f"Final vortex density: {data.vortex_density[-1]}")
+
+    save_lattice_plot(model, initial=False)
+    save_stored_plots(model, data)
+
+    metadata = simulation_metadata(model)
+
+    save_simulation_data(
+        filename=simulation_data_filename(model),
+        data=data,
+        metadata=metadata,
+    )
 
 
 def experiment_3():

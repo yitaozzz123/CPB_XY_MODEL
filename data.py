@@ -1,5 +1,6 @@
 import numpy as np
 from collections import deque
+from vortices import count_vortices
 
 
 class SimulationData:
@@ -10,18 +11,17 @@ class SimulationData:
         self.magnetization_window = deque(maxlen=window_size)
         self.magnetization_moving_average = []
 
-        self.acceptance_window = deque(maxlen=window_size)
         self.acceptance_ratio = []
 
         self.energy = []
         self.energy_per_spin = []
 
-    def store_acceptance(self, accepted):
-        self.acceptance_window.append(int(accepted))
+        self.n_vortices = []
+        self.n_antivortices = []
+        self.vortex_density = []
 
-        if len(self.acceptance_window) == self.window_size:
-            ratio = sum(self.acceptance_window) / self.window_size
-            self.acceptance_ratio.append(ratio)
+    def store_acceptance(self, acceptance_ratio):
+        self.acceptance_ratio.append(acceptance_ratio)
 
     def store_magnetization(self, magnetization):
         magnetization_module = np.linalg.norm(magnetization)
@@ -38,7 +38,20 @@ class SimulationData:
         self.energy.append(energy)
         self.energy_per_spin.append(energy / n_particles)
 
-    def store_step(self, accepted, magnetization, energy, n_particles):
-        self.store_acceptance(accepted)
+    def store_vortices(self, state):
+
+        n_vortices, n_antivortices = count_vortices(state)
+
+        self.n_vortices.append(n_vortices)
+        self.n_antivortices.append(n_antivortices)
+        self.vortex_density.append((n_vortices + n_antivortices) / state.size)
+
+    def store_step(
+        self, acceptance_ratio, magnetization, energy, n_particles, state=None
+    ):
+        self.store_acceptance(acceptance_ratio)
         self.store_magnetization(magnetization)
         self.store_energy(energy, n_particles)
+
+        if state is not None:
+            self.store_vortices(state)

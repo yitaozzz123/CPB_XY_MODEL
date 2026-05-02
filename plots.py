@@ -62,8 +62,8 @@ def make_magnetization_figure(model, data, style=None):
         raise ValueError("No magnetization data to plot.")
 
     x = np.arange(
-        model.n_particles,
-        model.n_particles + len(data.magnetization_moving_average),
+        data.window_size - 1,
+        data.window_size - 1 + len(data.magnetization_moving_average),
     )
 
     fig, ax = plt.subplots(figsize=style["figsize"])
@@ -95,18 +95,12 @@ def make_transition_figure(model, data, style=None):
     if len(data.acceptance_ratio) == 0:
         raise ValueError("No transition data to plot.")
 
-    x = np.arange(
-        model.n_particles,
-        model.n_particles + len(data.acceptance_ratio),
-    )
+    x = np.arange(len(data.acceptance_ratio))
 
     fig, ax = plt.subplots(figsize=style["figsize"])
     ax.plot(x, data.acceptance_ratio, linewidth=style["linewidth"])
 
-    ax.set_title(
-        f"Acceptance ratio in the last {model.n_particles} iterations",
-        fontsize=style["title_size"],
-    )
+    ax.set_title("Acceptance ratio per sweep", fontsize=style["title_size"])
     ax.set_xlabel("Iteration", fontsize=style["label_size"])
     ax.set_ylabel("Ratio", fontsize=style["label_size"])
     ax.set_ylim(0, 1)
