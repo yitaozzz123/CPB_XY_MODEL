@@ -48,18 +48,7 @@ def mean_and_std_from_blocks(series, block_size):
     blocks = block_series(series, block_size)
     block_means = np.mean(blocks, axis=1)
 
-    mean = np.mean(block_means)
-    std = np.std(block_means, ddof=1)
-
-    return mean, std
-
-
-def mean_absolute_spin(magnetization_series, block_size):
-    return mean_and_std_from_blocks(magnetization_series, block_size)
-
-
-def mean_energy_per_spin(energy_per_spin_series, block_size):
-    return mean_and_std_from_blocks(energy_per_spin_series, block_size)
+    return np.mean(block_means), np.std(block_means, ddof=1)
 
 
 def magnetic_susceptibility_per_spin(magnetization_series, beta, n_particles):
@@ -75,14 +64,9 @@ def specific_heat_per_spin(energy_series, beta, temp, n_particles):
 def block_observable(series, block_size, observable_function, **params):
     blocks = block_series(series, block_size)
 
-    values = [observable_function(block, **params) for block in blocks]
+    values = np.array([observable_function(block, **params) for block in blocks])
 
-    values = np.asarray(values)
-
-    mean = np.mean(values)
-    std = np.std(values, ddof=1)
-
-    return mean, std
+    return np.mean(values), np.std(values, ddof=1)
 
 
 def analyze_simulation(loaded_data):
@@ -91,12 +75,15 @@ def analyze_simulation(loaded_data):
     magnetization = loaded_data["magnetization_data"]
     energy = loaded_data["energy"]
     energy_per_spin = loaded_data["energy_per_spin"]
+    vortex_density = loaded_data["vortex_density"]
+    n_vortices = loaded_data["n_vortices"]
+    n_antivortices = loaded_data["n_antivortices"]
 
     tau = autocorrelation_time(magnetization)
     block_size = max(1, int(16 * tau))
 
-    mean_M, std_M = mean_absolute_spin(magnetization, block_size)
-    mean_E, std_E = mean_energy_per_spin(energy_per_spin, block_size)
+    mean_M, std_M = mean_and_std_from_blocks(magnetization, block_size)
+    mean_E, std_E = mean_and_std_from_blocks(energy_per_spin, block_size)
 
     chi_M, std_chi_M = block_observable(
         magnetization,
@@ -115,7 +102,29 @@ def analyze_simulation(loaded_data):
         n_particles=metadata["n_particles"],
     )
 
+    mean_vortex_density, std_vortex_density = mean_and_std_from_blocks(
+        vortex_density,
+        block_size,
+    )
+
+    mean_n_vortices, std_n_vortices = mean_and_std_from_blocks(
+        n_vortices,
+        block_size,
+    )
+
+    mean_n_antivortices, std_n_antivortices = mean_and_std_from_blocks(
+        n_antivortices,
+        block_size,
+    )
+
     return {
+        "temp": metadata["temp"],
+        "external_field": metadata["external_field"],
+        "n_particles_1d": metadata["n_particles_1d"],
+        "n_particles": metadata["n_particles"],
+        "n_sweeps": metadata["n_sweeps"],
+        "beta": metadata["beta"],
+        "J": metadata["J"],
         "tau": tau,
         "block_size": block_size,
         "mean_absolute_spin": mean_M,
@@ -126,4 +135,10 @@ def analyze_simulation(loaded_data):
         "std_magnetic_susceptibility_per_spin": std_chi_M,
         "specific_heat_per_spin": C,
         "std_specific_heat_per_spin": std_C,
+        "mean_vortex_density": mean_vortex_density,
+        "std_vortex_density": std_vortex_density,
+        "mean_n_vortices": mean_n_vortices,
+        "std_n_vortices": std_n_vortices,
+        "mean_n_antivortices": mean_n_antivortices,
+        "std_n_antivortices": std_n_antivortices,
     }

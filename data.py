@@ -46,12 +46,8 @@ class SimulationData:
         self.n_antivortices.append(n_antivortices)
         self.vortex_density.append((n_vortices + n_antivortices) / state.size)
 
-    def store_step(
-        self, acceptance_ratio, magnetization, energy, n_particles, state=None
-    ):
+    def store_step(self, acceptance_ratio, magnetization, energy, n_particles, state):
         self.store_acceptance(acceptance_ratio)
         self.store_magnetization(magnetization)
         self.store_energy(energy, n_particles)
-
-        if state is not None:
-            self.store_vortices(state)
+        self.store_vortices(state)

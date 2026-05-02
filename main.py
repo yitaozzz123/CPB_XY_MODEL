@@ -15,15 +15,14 @@ class XY_Monte_Carlo:
         external_field=0,
         all_up=False,
         seed=None,
-        n_iterations=1000,
+        n_sweeps=1000,
     ):
         self.temp = temp
         self.n_particles_1d = n_particles_1d
         self.all_up = all_up
         self.external_field = external_field
         self.rng = np.random.default_rng(seed=seed)
-        self.n_iterations = n_iterations
-        self.n_sweeps = n_iterations
+        self.n_sweeps = n_sweeps
 
         self.n_dim = 2
         self.n_particles = n_particles_1d**self.n_dim
@@ -230,7 +229,7 @@ def experiment_1():
     combinations = list(product(temps, particles))
 
     for T, N in tqdm(combinations, desc="Simulations"):
-        model = XY_Monte_Carlo(T, N, n_iterations=1000000)
+        model = XY_Monte_Carlo(T, N, n_sweeps=1000000)
 
         save_lattice_plot(model, initial=True)
 
@@ -251,7 +250,7 @@ def experiment_1():
 
 
 def experiment_2():
-    model = XY_Monte_Carlo(1.0, 10, n_iterations=10000)
+    model = XY_Monte_Carlo(1.0, 10, n_sweeps=10000)
 
     data = model.full_transition()
 
@@ -273,7 +272,7 @@ def experiment_2():
 
 
 def experiment_3():
-    model = XY_Monte_Carlo(0.8, 30)
+    model = XY_Monte_Carlo(0.8, 30, n_sweeps=1000)
 
     save_lattice_plot(model, initial=True)
 

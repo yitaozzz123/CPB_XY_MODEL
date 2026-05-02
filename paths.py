@@ -49,3 +49,21 @@ def simulation_data_filename(model):
     folder = data_folder(model)
     folder.mkdir(parents=True, exist_ok=True)
     return folder / f"{base_filename(model)}_data.npz"
+
+
+def energy_filename(model):
+    folder = results_folder(model)
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / f"{base_filename(model)}_energy_per_spin.pdf"
+
+
+def vortex_filename(model):
+    folder = results_folder(model)
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / f"{base_filename(model)}_vortex_density.pdf"
+
+
+def vortex_count_filename(model):
+    folder = results_folder(model)
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / f"{base_filename(model)}_vortex_counts.pdf"

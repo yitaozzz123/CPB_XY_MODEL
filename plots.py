@@ -1,6 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from paths import lattice_filename, magnetization_filename, transitions_filename
+from paths import (
+    lattice_filename,
+    magnetization_filename,
+    transitions_filename,
+    energy_filename,
+    vortex_filename,
+    vortex_count_filename,
+)
 
 
 def default_plot_style():
@@ -120,6 +127,111 @@ def save_transition_plot(model, data, style=None):
     plt.close(fig)
 
 
+def make_energy_figure(data, style=None):
+    if style is None:
+        style = default_plot_style()
+
+    if len(data.energy_per_spin) == 0:
+        raise ValueError("No energy data to plot.")
+
+    x = np.arange(len(data.energy_per_spin))
+
+    fig, ax = plt.subplots(figsize=style["figsize"])
+    ax.plot(x, data.energy_per_spin, linewidth=style["linewidth"])
+
+    ax.set_title("Energy per spin", fontsize=style["title_size"])
+    ax.set_xlabel("Sweep", fontsize=style["label_size"])
+    ax.set_ylabel("E / N", fontsize=style["label_size"])
+    ax.grid(True, alpha=style["grid_alpha"])
+    ax.tick_params(axis="both", labelsize=style["tick_size"])
+
+    fig.tight_layout()
+    return fig, ax
+
+
+def save_energy_plot(model, data, style=None):
+    if len(data.energy_per_spin) == 0:
+        return
+
+    fig, _ = make_energy_figure(data, style)
+    fig.savefig(energy_filename(model), bbox_inches="tight")
+    plt.close(fig)
+
+
+def make_vortex_figure(data, style=None):
+    if style is None:
+        style = default_plot_style()
+
+    if len(data.vortex_density) == 0:
+        raise ValueError("No vortex data to plot.")
+
+    x = np.arange(len(data.vortex_density))
+
+    fig, ax = plt.subplots(figsize=style["figsize"])
+    ax.plot(x, data.vortex_density, linewidth=style["linewidth"])
+
+    ax.set_title("Vortex density vs sweep", fontsize=style["title_size"])
+    ax.set_xlabel("Sweep", fontsize=style["label_size"])
+    ax.set_ylabel("Vortex density", fontsize=style["label_size"])
+    ax.grid(True, alpha=style["grid_alpha"])
+    ax.tick_params(axis="both", labelsize=style["tick_size"])
+
+    fig.tight_layout()
+    return fig, ax
+
+
+def save_vortex_plot(model, data, style=None):
+    if len(data.vortex_density) == 0:
+        return
+
+    fig, _ = make_vortex_figure(data, style)
+    fig.savefig(vortex_filename(model), bbox_inches="tight")
+    plt.close(fig)
+
+
+def make_vortex_count_figure(data, style=None):
+    if style is None:
+        style = default_plot_style()
+
+    if len(data.n_vortices) == 0:
+        raise ValueError("No vortex data to plot.")
+
+    x = np.arange(len(data.n_vortices))
+
+    fig, ax = plt.subplots(figsize=style["figsize"])
+
+    ax.plot(x, data.n_vortices, label="vortices (+1)", linewidth=style["linewidth"])
+    ax.plot(
+        x,
+        data.n_antivortices,
+        label="antivortices (-1)",
+        linewidth=style["linewidth"],
+    )
+
+    ax.set_title("Vortices and antivortices vs sweep", fontsize=style["title_size"])
+    ax.set_xlabel("Sweep", fontsize=style["label_size"])
+    ax.set_ylabel("Count", fontsize=style["label_size"])
+
+    ax.legend()
+    ax.grid(True, alpha=style["grid_alpha"])
+    ax.tick_params(axis="both", labelsize=style["tick_size"])
+
+    fig.tight_layout()
+    return fig, ax
+
+
+def save_vortex_count_plot(model, data, style=None):
+    if len(data.n_vortices) == 0:
+        return
+
+    fig, _ = make_vortex_count_figure(data, style)
+    fig.savefig(vortex_count_filename(model), bbox_inches="tight")
+    plt.close(fig)
+
+
 def save_stored_plots(model, data):
     save_magnetization_plot(model, data)
     save_transition_plot(model, data)
+    save_energy_plot(model, data)
+    save_vortex_plot(model, data)
+    save_vortex_count_plot(model, data)
