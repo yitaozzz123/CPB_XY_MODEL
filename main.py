@@ -10,7 +10,8 @@ class XY_Monte_Carlo:
         self,
         temp,
         n_particles_1d,
-        external_field=0,
+        external_field_strength=0,
+        external_field_angle=0,
         all_up=False,
         seed=None,
         n_iterations=1000,
@@ -18,7 +19,8 @@ class XY_Monte_Carlo:
         self.temp = temp
         self.n_particles_1d = n_particles_1d
         self.all_up = all_up
-        self.external_field = external_field
+        self.external_field_strength = external_field_strength
+        self.external_field_angle = external_field_angle
         self.rng = np.random.default_rng(seed=seed)
         self.n_iterations = n_iterations
 
@@ -26,7 +28,6 @@ class XY_Monte_Carlo:
         self.n_particles = n_particles_1d**self.n_dim
         self.transition_counter = 0
         self.energy_per_spin = 0
-        self.h_field = 0
         self.boltzmann_constant = 1
         self.magnetization_data = []
         self.last_transitions = deque(maxlen=self.n_particles)  # tau
@@ -77,13 +78,9 @@ class XY_Monte_Carlo:
                         )
                     )
 
-                """
-                # external field contribution
-                field = self.field[i, j]
-                field_magnitude = np.sqrt(np.dot(field, field))
-                field_angle = np.arctan2(field)
-                energy += field_magnitude * np.cos(self.state[i, j] - field_angle)
-                """
+                
+                energy += self.external_field_strength * np.cos(self.state[i, j] - self.external_field_angle)
+                
         return energy
 
     def energy_change(self, particle_index, new_angle):
@@ -106,14 +103,8 @@ class XY_Monte_Carlo:
             )
 
         # field contribution
-        """
-        field = self.field[*particle_index]
-        field_magnitude = np.sqrt(np.dot(field, field))
-        field_angle = np.arctan2(field)
-
-        energy -= field_magnitude * np.cos(old_angle - field_angle)
-        energy += field_magnitude * np.cos(new_angle - field_angle)
-        """
+        energy -= self.external_field_strength * np.cos(old_angle - self.external_field_angle)
+        energy += self.external_field_strength * np.cos(new_angle - self.external_field_angle)
 
         return energy
 
@@ -360,6 +351,48 @@ class XY_Monte_Carlo:
         C = self.beta * var_E / (self.n_particles * self.temp)
         return C
 
+    def find_vortices_angular_momenta(self, state, angular_momentum_limit = 2):
+        vortex_coordinates = []
+        angular_momenta = self.compute_angular_momenta(state)
+        for i in range(np.shape(state)[0]):
+            for j in range(np.shape(state)[1]):
+                if np.abs(angular_momenta[i,j]) > angular_momentum_limit:
+                    vortex_coordinates.append([i,j])
+        return vortex_coordinates
+
+    def find_vortices_unwrap(self):
+
+        vortex_coordinates = []
+        
+        for i in range(self.n_particles_1d):
+            for j in range(self.n_particles_1d):
+                angles = np.zeros(5)
+                angles[0] = self.state[i,j]
+                angles[1] = self.state[(i+1)%self.n_particles_1d,j]
+                angles[2] = self.state[(i+1)%self.n_particles_1d,(j+1)%self.n_particles_1d]
+                angles[3] = self.state[i,(j+1)%self.n_particles_1d]
+                angles[4] = self.state[i,j]
+
+                angles = np.unwrap(angles)
+                if (np.abs(angles[4] - angles[0]) > 1.5*np.pi):
+                    vortex_coordinates.append([i,j])
+        return vortex_coordinates
+
+    def compute_angular_momenta(self, state):
+        # angular momenta assigned to the top right particle of 4 particles in a square
+        state_shape = np.shape(state)
+        angular_momenta = np.zeros(state_shape)
+        x_coord = np.array([-1,1])/np.sqrt(2)
+        y_coord = np.array([1,-1])/np.sqrt(2)
+        for i in range(state_shape[0]):
+            for j in range(state_shape[1]):
+                # loop over 4 atoms in a square for angular momenta
+                for k in range(2):
+                    for l in range(2):
+                        angle = state[(i+k)%state_shape[0],(j+l)%state_shape[1]] 
+                        angular_momenta[i,j] += x_coord[k]*np.cos(angle) + y_coord[l]*np.sin(angle)
+        return angular_momenta
+
 
 def experiment_1():
     temps = np.linspace(0.5, 2.5, 11)
@@ -384,14 +417,28 @@ def experiment_1():
 
 
 def experiment_2(): # I use for testing if correlation time works
-    test = XY_Monte_Carlo(1, 10, n_iterations = 10000)
-    #for i in range(1000):
-    #    test.single_transition()
+    N = 1000
+    test = XY_Monte_Carlo(0.1, 50, n_iterations= N, external_field_strength=0)
+    for i in range(1000):
+        test.single_transition()
     test.full_transition()
-    print(len(test.magnetization_data))
+    
+    correlations = np.zeros(N)
+    for i in range(N):
+        correlations[i] = (test.autocorrelation(i))
+
+    vortex_coordinates1 = np.array(test.find_vortices_angular_momenta(test.state, angular_momentum_limit = 2.5))
+    vortex_coordinates2 = np.array(test.find_vortices_unwrap()) 
+    test.plot_lattice()
+
+    plt.scatter(vortex_coordinates1[:,0], vortex_coordinates1[:,1])
+    plt.scatter(vortex_coordinates2[:,0], vortex_coordinates2[:,1])
+
+    plt.show()
 
     print(test.autocorrelation_time())
 
 
 experiment_2()
+
 
