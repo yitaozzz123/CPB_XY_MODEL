@@ -217,47 +217,6 @@ def simulation_metadata(model):
         "all_up": model.all_up,
     }
 
-    def find_vortices_angular_momenta(self, state, angular_momentum_limit = 2):
-        vortex_coordinates = []
-        angular_momenta = self.compute_angular_momenta(state)
-        for i in range(np.shape(state)[0]):
-            for j in range(np.shape(state)[1]):
-                if np.abs(angular_momenta[i,j]) > angular_momentum_limit:
-                    vortex_coordinates.append([i,j])
-        return vortex_coordinates
-
-    def find_vortices_unwrap(self):
-
-        vortex_coordinates = []
-        
-        for i in range(self.n_particles_1d):
-            for j in range(self.n_particles_1d):
-                angles = np.zeros(5)
-                angles[0] = self.state[i,j]
-                angles[1] = self.state[(i+1)%self.n_particles_1d,j]
-                angles[2] = self.state[(i+1)%self.n_particles_1d,(j+1)%self.n_particles_1d]
-                angles[3] = self.state[i,(j+1)%self.n_particles_1d]
-                angles[4] = self.state[i,j]
-
-                angles = np.unwrap(angles)
-                if (np.abs(angles[4] - angles[0]) > 1.5*np.pi):
-                    vortex_coordinates.append([i,j])
-        return vortex_coordinates
-
-    def compute_angular_momenta(self, state):
-        # angular momenta assigned to the top right particle of 4 particles in a square
-        state_shape = np.shape(state)
-        angular_momenta = np.zeros(state_shape)
-        x_coord = np.array([-1,1])/np.sqrt(2)
-        y_coord = np.array([1,-1])/np.sqrt(2)
-        for i in range(state_shape[0]):
-            for j in range(state_shape[1]):
-                # loop over 4 atoms in a square for angular momenta
-                for k in range(2):
-                    for l in range(2):
-                        angle = state[(i+k)%state_shape[0],(j+l)%state_shape[1]] 
-                        angular_momenta[i,j] += x_coord[k]*np.cos(angle) + y_coord[l]*np.sin(angle)
-        return angular_momenta
 
 
 def experiment_1():
