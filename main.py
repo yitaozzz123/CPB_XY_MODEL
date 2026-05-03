@@ -1,8 +1,15 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from collections import deque
 from itertools import product
 from tqdm import tqdm
+from plots import save_lattice_plot, save_stored_plots
+from data import SimulationData
+from storage import save_simulation_data
+from paths import simulation_data_filename
+from cross_analysis import (
+    analyze_data_folder,
+    save_analysis_summary,
+    make_standard_plots,
+)
 
 
 class XY_Monte_Carlo:
@@ -14,7 +21,7 @@ class XY_Monte_Carlo:
         external_field_angle=0,
         all_up=False,
         seed=None,
-        n_iterations=1000,
+        n_sweeps=1000,
     ):
         self.temp = temp
         self.n_particles_1d = n_particles_1d
@@ -22,24 +29,16 @@ class XY_Monte_Carlo:
         self.external_field_strength = external_field_strength
         self.external_field_angle = external_field_angle
         self.rng = np.random.default_rng(seed=seed)
-        self.n_iterations = n_iterations
+        self.n_sweeps = n_sweeps
 
         self.n_dim = 2
         self.n_particles = n_particles_1d**self.n_dim
         self.transition_counter = 0
         self.energy_per_spin = 0
         self.boltzmann_constant = 1
-        self.magnetization_data = []
-        self.last_transitions = deque(maxlen=self.n_particles)  # tau
-        self.last_transitions_data = []
-        self.last_magnetizations = deque(maxlen=self.n_particles)  # tau
-        self.last_magnetizations_data = []
-        self.last_energy_per_spin = deque(maxlen=self.n_particles)  # tau
-        self.last_energy = deque(maxlen=self.n_particles)  # tau
 
-        self.nearest_neighbours = np.array(
-            [[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int
-        )
+        self.nearest_neighbours = self.define_near_neigh()
+
         self.J = 1  # natural units, comment on later
 
         self.state = self.initialize_state()
@@ -49,6 +48,9 @@ class XY_Monte_Carlo:
     def shape(self):
         return [self.n_particles_1d] * self.n_dim
 
+    #######################################################
+    # State initialization functions
+
     def random_state(self):
         initial_state = self.rng.uniform(-np.pi, np.pi, self.shape())
         return initial_state
@@ -57,6 +59,15 @@ class XY_Monte_Carlo:
         state = np.full(self.shape(), np.pi / 2)
         return state
 
+    def initialize_state(self):
+        if self.all_up:
+            initial_state = self.state_all_up()
+        else:
+            initial_state = self.random_state()
+        return initial_state
+
+    ###############################################################################
+    # Total energy
     def hamiltonian(self):
         energy = 0
         # loop over all particles in the x and y direction
@@ -82,6 +93,41 @@ class XY_Monte_Carlo:
                 energy += self.external_field_strength * np.cos(self.state[i, j] - self.external_field_angle)
                 
         return energy
+
+    def define_near_neigh(self):
+        return np.array([[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int)
+
+    #########################################################
+    """In this set of functions, the transition between two configuration that differs of only one spin is handled
+        following the Metropolis-Hastings algorithm:
+
+        - single_transition: compute if the transition happens
+        - trial_one_spin_change: decides which element of the lattice 
+            we want to change + the value
+        - energy change: computes the difference between the two different 
+            configuration of spins without computing the complete hamiltonian
+        - acceptance probability: computes the probability of the transition following 
+            Metropolis-Hastings algorithm
+    """
+
+    def single_transition(self):
+        particle_index, new_angle = self.trial_one_spin_change()
+        energy_update = self.energy_change(particle_index, new_angle)
+
+        accepted = self.rng.random() < self.acceptance_probability(energy_update)
+
+        if accepted:
+            self.state[*particle_index] = new_angle
+            self.energy += energy_update
+            self.transition_counter += 1
+
+        return accepted
+
+    def trial_one_spin_change(self):
+        new_angle = self.rng.uniform(-np.pi, np.pi)
+        particle_index = self.rng.integers(0, self.n_particles_1d, self.n_dim)
+
+        return particle_index, new_angle
 
     def energy_change(self, particle_index, new_angle):
 
@@ -116,31 +162,7 @@ class XY_Monte_Carlo:
 
         return acceptance
 
-    def single_transition(self):
-        particle_index, new_angle = self.trial_one_spin_change()
-        energy_update = self.energy_change(particle_index, new_angle)
-
-        # print(energy_update)
-
-        if self.rng.random() < self.acceptance_probability(energy_update):
-            self.state[*particle_index] = new_angle
-            self.transition_counter += 1
-            self.last_transitions.append(1)
-        else:
-            self.last_transitions.append(0)
-
-    def initialize_state(self):
-        if self.all_up:
-            initial_state = self.state_all_up()
-        else:
-            initial_state = self.random_state()
-        return initial_state
-
-    def trial_one_spin_change(self):
-        new_angle = self.rng.uniform(-np.pi, np.pi)
-        particle_index = self.rng.integers(0, self.n_particles_1d, self.n_dim)
-
-        return particle_index, new_angle
+    ####################################################################################
 
     def magnetic_moments_cartesian(self):
         magnetic_moment_vectors = np.array([np.cos(self.state), np.sin(self.state)])
@@ -153,203 +175,47 @@ class XY_Monte_Carlo:
         magnetisation_vector = np.mean(magnetisation_vectors, axis=(1, 2))
         return magnetisation_vector
 
-    def plot_lattice(self):
-        if self.n_dim != 2:
-            raise ValueError("Only 2d plot")
+    def sweep_of_transitions(self):
+        accepted_count = 0
 
-        y, x = np.mgrid[0 : self.state.shape[0], 0 : self.state.shape[1]]
+        for _ in range(self.n_particles):
+            accepted = self.single_transition()
+            accepted_count += int(accepted)
 
-        u = np.cos(self.state)
-        v = np.sin(self.state)
-
-        self.fig, self.ax = plt.subplots()
-
-        self.q = self.ax.quiver(
-            x,
-            y,
-            u,
-            v,
-            self.state,
-            cmap="twilight",
-            norm=plt.Normalize(-np.pi, np.pi),
-            scale=40,
-            width=0.008,
-        )
-
-        self.cbar = self.fig.colorbar(self.q, ax=self.ax, label="Angle (radians)")
-
-        self.ax.set_title("State visualization")
-        self.ax.set_xlabel("X index")
-        self.ax.set_ylabel("Y index")
-        self.ax.set_aspect("equal")
-
-        return self.fig, self.ax
-
-    def update_animation(self):
-        u = np.cos(self.state)
-        v = np.sin(self.state)
-
-        # aggiorna le frecce
-        self.q.set_UVC(u, v)
-
-        # aggiorna i colori associati
-        self.q.set_array(self.state.ravel())
-
-    def animation(self, frames=1000):
-        self.plot_lattice()
-
-        for _ in range(frames):
-            self.single_transition()
-            self.update_animation()
-            plt.pause(0.01)
-
-        self.save_plot_lattice(initial=False)
-        plt.close(self.fig)
-        return 0
-
-    def save_plot_lattice(self, initial: bool):
-        if initial:
-            filename = f"{self.base_filename()}_lattice_initial.pdf"
-        else:
-            filename = f"{self.base_filename()}_lattice_final.pdf"
-
-        self.fig.savefig(filename, bbox_inches="tight")
-        plt.close(self.fig)
-
-    # stores magnetizations inside a list:
-    #   self.magnetization_data stores the module of the total magnetization for each timestep
-    #   self.last_magnetization stores the cartesian vector
-    def store_magnetizations(self):
-        magnetization = self.total_magnetisation()
-        magn_module = np.linalg.norm(magnetization)
-
-        self.magnetization_data.append(magn_module)
-        self.last_magnetizations.append(magnetization)
-
-    def store_transition_ratio(self):
-        if len(self.last_transitions) == 100:
-            ratio = sum(self.last_transitions) / 100
-            self.last_transitions_data.append(ratio)
-
-    # it stores the average of the last 100 timesteps
-    def store_magnetization_average(self):
-        if len(self.last_magnetizations) == 100:
-            avg_vector = np.mean(np.array(self.last_magnetizations), axis=0)
-            avg_module = np.linalg.norm(avg_vector)
-            self.last_magnetizations_data.append(avg_module)
+        return accepted_count / self.n_particles
 
     def full_transition(self):
-        for _ in range(self.n_iterations):
-            self.single_transition()
-            self.store_magnetizations()
-            self.store_magnetization_average()
-            self.store_transition_ratio()
+        data = SimulationData(window_size=self.n_particles)
 
-    def plot_magnetization_data(self, style):
-        if len(self.last_magnetizations_data) == 0:
-            raise ValueError("No magnetization data to plot.")
+        for _ in range(self.n_sweeps):
+            acceptance_ratio = self.sweep_of_transitions()
+            magnetization = self.total_magnetisation()
 
-        x = np.arange(100, 100 + len(self.last_magnetizations_data))
+            data.store_step(
+                acceptance_ratio=acceptance_ratio,
+                magnetization=magnetization,
+                energy=self.energy,
+                n_particles=self.n_particles,
+                state=self.state,
+            )
 
-        fig, ax = plt.subplots(figsize=style["figsize"])
-        ax.plot(x, self.last_magnetizations_data, linewidth=style["linewidth"])
-
-        ax.set_title(
-            "Magnetization modulus of mean vector", fontsize=style["title_size"]
-        )
-        ax.set_xlabel("Iteration", fontsize=style["label_size"])
-        ax.set_ylabel("|<M>|", fontsize=style["label_size"])
-        ax.grid(True, alpha=style["grid_alpha"])
-        ax.tick_params(axis="both", labelsize=style["tick_size"])
-
-        fig.tight_layout()
-        fig.savefig(
-            f"{self.base_filename()}_magnetization.pdf",
-            bbox_inches="tight",
-        )
-
-        plt.close(fig)
-
-    def plot_transition_data(self, style):
-        if len(self.last_transitions_data) == 0:
-            raise ValueError("No transition data to plot.")
-
-        x = np.arange(100, 100 + len(self.last_transitions_data))
-
-        fig, ax = plt.subplots(figsize=style["figsize"])
-        ax.plot(x, self.last_transitions_data, linewidth=style["linewidth"])
-
-        ax.set_title(
-            "Acceptance ratio in the last 100 iterations", fontsize=style["title_size"]
-        )
-        ax.set_xlabel("Iteration", fontsize=style["label_size"])
-        ax.set_ylabel("Ratio", fontsize=style["label_size"])
-        ax.set_ylim(0, 1)
-        ax.grid(True, alpha=style["grid_alpha"])
-        ax.tick_params(axis="both", labelsize=style["tick_size"])
-
-        fig.tight_layout()
-        fig.savefig(
-            f"{self.base_filename()}_transitions.pdf",
-            bbox_inches="tight",
-        )
-
-        plt.close(fig)
-
-    def plot_stored_data(self):
-        style = {
-            "figsize": (10, 4),
-            "linewidth": 1.8,
-            "title_size": 14,
-            "label_size": 12,
-            "tick_size": 10,
-            "grid_alpha": 0.3,
-        }
-
-        if len(self.last_magnetizations_data) > 0:
-            self.plot_magnetization_data(style)
-
-        if len(self.last_transitions_data) > 0:
-            self.plot_transition_data(style)
+        return data
 
     def base_filename(self):
         return f"T_{self.temp:04.2f}_N_{self.n_particles_1d:03d}"
 
-    def compute_and_store_energy_per_spin(self):
-        self.energy_per_spin = self.energy / self.n_particles
-        self.last_energy_per_spin.append(self.energy_per_spin)
 
-    def autocorrelation(self, sweep_index):
-        magnetisations = np.array(self.magnetization_data)
-        number_sweeps = len(magnetisations) - sweep_index
-        autocorrelation = np.trapezoid(magnetisations[:number_sweeps]*magnetisations[sweep_index:])/number_sweeps
-        autocorrelation -= np.trapezoid(magnetisations[:number_sweeps])*np.trapezoid(magnetisations[sweep_index:])*number_sweeps**-2
-        return autocorrelation
-
-    def autocorrelation_time(self):
-        autocorrelation0 = self.autocorrelation(0)
-        autocorrelation=autocorrelation0
-        correlation_time = 0
-        sweep_index = 0
-        sweep_max = len(self.magnetization_data)
-        #print(sweep_max, "sweep max")
-        while (autocorrelation > 0) and (sweep_index < sweep_max):
-            autocorrelation = self.autocorrelation(sweep_index)
-            sweep_index += 1
-            correlation_time += autocorrelation/autocorrelation0
-            #print(autocorrelation, sweep_index)
-        return correlation_time
-
-
-    def compute_chi_M(self):
-        var_M = np.var(self.last_magnetizations)
-        chi_M = self.beta * var_M / self.n_particles
-        return chi_M
-
-    def compute_C(self):
-        var_E = np.var(self.last_energy)
-        C = self.beta * var_E / (self.n_particles * self.temp)
-        return C
+def simulation_metadata(model):
+    return {
+        "temp": model.temp,
+        "n_particles_1d": model.n_particles_1d,
+        "n_particles": model.n_particles,
+        "n_sweeps": model.n_sweeps,
+        "beta": model.beta,
+        "J": model.J,
+        "external_field": model.external_field,
+        "all_up": model.all_up,
+    }
 
     def find_vortices_angular_momenta(self, state, angular_momentum_limit = 2):
         vortex_coordinates = []
@@ -395,50 +261,122 @@ class XY_Monte_Carlo:
 
 
 def experiment_1():
-    temps = np.linspace(0.5, 2.5, 11)
+    temps = np.arange(0.5, 2.5 + 0.001, 0.2)
     particles = [10, 20, 50]
 
     combinations = list(product(temps, particles))
 
-    for T, N in tqdm(combinations, desc="Simulations"):
-        test = XY_Monte_Carlo(T, N, n_iterations=1000000)
+    for T, N in tqdm(combinations, desc="No-field simulations"):
+        model = XY_Monte_Carlo(
+            temp=T,
+            n_particles_1d=N,
+            external_field=0,
+            n_sweeps=5000,
+        )
 
-        test.plot_lattice()
-        test.save_plot_lattice(initial=True)
+        save_lattice_plot(model, initial=True)
 
-        test.full_transition()
+        data = model.full_transition()
 
-        test.plot_lattice()
-        test.save_plot_lattice(initial=False)
+        save_lattice_plot(model, initial=False)
+        save_stored_plots(model, data)
 
-        test.plot_stored_data()
+        save_simulation_data(
+            filename=simulation_data_filename(model),
+            data=data,
+            metadata=simulation_metadata(model),
+        )
 
-    print("Done all simulations for experiment 1")
-
-
-def experiment_2(): # I use for testing if correlation time works
-    N = 1000
-    test = XY_Monte_Carlo(0.1, 50, n_iterations= N, external_field_strength=0)
-    for i in range(1000):
-        test.single_transition()
-    test.full_transition()
-    
-    correlations = np.zeros(N)
-    for i in range(N):
-        correlations[i] = (test.autocorrelation(i))
-
-    vortex_coordinates1 = np.array(test.find_vortices_angular_momenta(test.state, angular_momentum_limit = 2.5))
-    vortex_coordinates2 = np.array(test.find_vortices_unwrap()) 
-    test.plot_lattice()
-
-    plt.scatter(vortex_coordinates1[:,0], vortex_coordinates1[:,1])
-    plt.scatter(vortex_coordinates2[:,0], vortex_coordinates2[:,1])
-
-    plt.show()
-
-    print(test.autocorrelation_time())
+    print("Done all no-field simulations")
 
 
-experiment_2()
+def experiment_2():
+    model = XY_Monte_Carlo(1.0, 10, n_sweeps=10000)
+
+    data = model.full_transition()
+
+    print(f"Number of saved sweeps: {len(data.magnetization_data)}")
+    print(f"Final energy per spin: {data.energy_per_spin[-1]}")
+    print(f"Final magnetization: {data.magnetization_data[-1]}")
+    print(f"Final vortex density: {data.vortex_density[-1]}")
+
+    save_lattice_plot(model, initial=False)
+    save_stored_plots(model, data)
+
+    metadata = simulation_metadata(model)
+
+    save_simulation_data(
+        filename=simulation_data_filename(model),
+        data=data,
+        metadata=metadata,
+    )
 
 
+def experiment_3():
+    model = XY_Monte_Carlo(0.8, 30, n_sweeps=1000)
+
+    save_lattice_plot(model, initial=True)
+
+    data = model.full_transition()
+
+    save_lattice_plot(model, initial=False)
+    save_stored_plots(model, data)
+
+    metadata = simulation_metadata(model)
+
+    save_simulation_data(
+        filename=simulation_data_filename(model),
+        data=data,
+        metadata=metadata,
+    )
+
+
+from analysis import autocorrelation_time
+
+
+def tau_test():
+    temps = np.arange(0.5, 2.5 + 0.001, 0.2)
+    N = 50
+    n_sweeps = 5000
+
+    for T in temps:
+        model = XY_Monte_Carlo(
+            temp=T,
+            n_particles_1d=N,
+            external_field=0,
+            n_sweeps=n_sweeps,
+        )
+
+        data = model.full_transition()
+
+        tau = autocorrelation_time(data.magnetization_data)
+
+        print(
+            f"T={T:.2f}, "
+            f"N={N}, "
+            f"tau={tau:.2f} sweeps, "
+            f"block_size={int(16 * tau)}"
+        )
+
+
+def analyze_no_field_results():
+    results = analyze_data_folder("data")
+
+    summary_file = "analysis/summary_no_field.csv"
+
+    save_analysis_summary(
+        results,
+        filename=summary_file,
+    )
+
+    make_standard_plots(
+        summary_file=summary_file,
+        output_folder="analysis_plots/no_field",
+    )
+
+    print("Done no-field analysis")
+
+
+if __name__ == "__main__":
+    experiment_1()
+    analyze_no_field_results()
