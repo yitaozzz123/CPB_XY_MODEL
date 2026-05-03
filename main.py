@@ -90,7 +90,7 @@ class XY_Monte_Carlo:
                     )
 
                 
-                energy += self.external_field_strength * np.cos(self.state[i, j] - self.external_field_angle)
+                energy += - self.external_field_strength * np.cos(self.state[i, j] - self.external_field_angle)
                 
         return energy
 
@@ -149,8 +149,8 @@ class XY_Monte_Carlo:
             )
 
         # field contribution
-        energy -= self.external_field_strength * np.cos(old_angle - self.external_field_angle)
-        energy += self.external_field_strength * np.cos(new_angle - self.external_field_angle)
+        energy -= - self.external_field_strength * np.cos(old_angle - self.external_field_angle)
+        energy += - self.external_field_strength * np.cos(new_angle - self.external_field_angle)
 
         return energy
 
