@@ -44,6 +44,18 @@ def block_series(series, block_size):
     return trimmed.reshape(n_blocks, block_size)
 
 
+def mean_and_std_with_tau(series, tau):
+    series = np.asarray(series)
+
+    mean = np.mean(series)
+    var = np.var(series)
+    N = len(series)
+
+    std = np.sqrt(2 * tau / N * var)
+
+    return mean, std
+
+
 def mean_and_std_from_blocks(series, block_size):
     blocks = block_series(series, block_size)
     block_means = np.mean(blocks, axis=1)
@@ -70,20 +82,21 @@ def block_observable(series, block_size, observable_function, **params):
 
 
 def analyze_simulation(loaded_data):
+    thermalization_cut = int(loaded_data.get("thermalization_cut", 0))
     metadata = loaded_data["metadata"].item()
 
-    magnetization = loaded_data["magnetization_data"]
-    energy = loaded_data["energy"]
-    energy_per_spin = loaded_data["energy_per_spin"]
-    vortex_density = loaded_data["vortex_density"]
-    n_vortices = loaded_data["n_vortices"]
-    n_antivortices = loaded_data["n_antivortices"]
+    magnetization = loaded_data["magnetization_data"][thermalization_cut:]
+    energy = loaded_data["energy"][thermalization_cut:]
+    energy_per_spin = loaded_data["energy_per_spin"][thermalization_cut:]
+    vortex_density = loaded_data["vortex_density"][thermalization_cut:]
+    n_vortices = loaded_data["n_vortices"][thermalization_cut:]
+    n_antivortices = loaded_data["n_antivortices"][thermalization_cut:]
 
     tau = autocorrelation_time(magnetization)
     block_size = max(1, int(16 * tau))
 
-    mean_M, std_M = mean_and_std_from_blocks(magnetization, block_size)
-    mean_E, std_E = mean_and_std_from_blocks(energy_per_spin, block_size)
+    mean_M, std_M = mean_and_std_with_tau(magnetization, tau)
+    mean_E, std_E = mean_and_std_with_tau(energy_per_spin, tau)
 
     chi_M, std_chi_M = block_observable(
         magnetization,
@@ -141,4 +154,6 @@ def analyze_simulation(loaded_data):
         "std_n_vortices": std_n_vortices,
         "mean_n_antivortices": mean_n_antivortices,
         "std_n_antivortices": std_n_antivortices,
+        "thermalization_cut": thermalization_cut,
+        "n_samples_after_thermalization": len(magnetization),
     }

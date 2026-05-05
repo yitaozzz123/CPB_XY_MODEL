@@ -4,21 +4,25 @@ from vortices import count_vortices
 
 
 class SimulationData:
-    def __init__(self, window_size):
+    def __init__(self, window_size=100):
         self.window_size = window_size
 
         self.magnetization_data = []
         self.magnetization_window = deque(maxlen=window_size)
         self.magnetization_moving_average = []
 
-        self.acceptance_ratio = []
-
         self.energy = []
         self.energy_per_spin = []
+        self.energy_window = deque(maxlen=window_size)
+        self.energy_moving_average = []
+
+        self.acceptance_ratio = []
 
         self.n_vortices = []
         self.n_antivortices = []
         self.vortex_density = []
+
+        self.thermalization_cut = 0
 
     def store_acceptance(self, acceptance_ratio):
         self.acceptance_ratio.append(acceptance_ratio)
@@ -35,8 +39,15 @@ class SimulationData:
             self.magnetization_moving_average.append(avg_module)
 
     def store_energy(self, energy, n_particles):
+        energy_per_spin = energy / n_particles
+
         self.energy.append(energy)
-        self.energy_per_spin.append(energy / n_particles)
+        self.energy_per_spin.append(energy_per_spin)
+
+        self.energy_window.append(energy_per_spin)
+
+        if len(self.energy_window) == self.window_size:
+            self.energy_moving_average.append(np.mean(self.energy_window))
 
     def store_vortices(self, state):
 

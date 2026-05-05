@@ -186,7 +186,7 @@ class XY_Monte_Carlo:
         return accepted_count / self.n_particles
 
     def full_transition(self):
-        data = SimulationData(window_size=self.n_particles)
+        data = SimulationData(window_size=100)
 
         for _ in range(self.n_sweeps):
             acceptance_ratio = self.sweep_of_transitions()
@@ -206,7 +206,7 @@ class XY_Monte_Carlo:
         return f"T_{self.temp:04.2f}_N_{self.n_particles_1d:03d}"
 
 
-def simulation_metadata(model):
+def simulation_metadata(model: XY_Monte_Carlo):
     return {
         "temp": model.temp,
         "n_particles_1d": model.n_particles_1d,
@@ -214,181 +214,6 @@ def simulation_metadata(model):
         "n_sweeps": model.n_sweeps,
         "beta": model.beta,
         "J": model.J,
-        "external_field": model.external_field,
+        "external_field": model.external_field_strength,
         "all_up": model.all_up,
     }
-
-
-def simulations_no_field():
-    temps = np.arange(0.5, 2.5 + 0.001, 0.2)
-    particles = [10, 20, 50]
-
-    combinations = list(product(temps, particles))
-
-    for T, N in tqdm(combinations, desc="No-field simulations"):
-        model = XY_Monte_Carlo(
-            temp=T,
-            n_particles_1d=N,
-            external_field=0,
-            n_sweeps=5000,
-        )
-
-        save_lattice_plot(model, initial=True)
-
-        data = model.full_transition()
-
-        save_lattice_plot(model, initial=False)
-        save_stored_plots(model, data)
-
-        save_simulation_data(
-            filename=simulation_data_filename(model),
-            data=data,
-            metadata=simulation_metadata(model),
-        )
-
-    print("Done all no-field simulations")
-
-
-def experiment_2():
-    model = XY_Monte_Carlo(1.0, 10, n_sweeps=10000)
-
-    data = model.full_transition()
-
-    print(f"Number of saved sweeps: {len(data.magnetization_data)}")
-    print(f"Final energy per spin: {data.energy_per_spin[-1]}")
-    print(f"Final magnetization: {data.magnetization_data[-1]}")
-    print(f"Final vortex density: {data.vortex_density[-1]}")
-
-    save_lattice_plot(model, initial=False)
-    save_stored_plots(model, data)
-
-    metadata = simulation_metadata(model)
-
-    save_simulation_data(
-        filename=simulation_data_filename(model),
-        data=data,
-        metadata=metadata,
-    )
-
-
-def experiment_3():
-    model = XY_Monte_Carlo(0.8, 30, n_sweeps=1000)
-
-    save_lattice_plot(model, initial=True)
-
-    data = model.full_transition()
-
-    save_lattice_plot(model, initial=False)
-    save_stored_plots(model, data)
-
-    metadata = simulation_metadata(model)
-
-    save_simulation_data(
-        filename=simulation_data_filename(model),
-        data=data,
-        metadata=metadata,
-    )
-
-
-def experiment_4():
-
-    particles = [10, 20, 50]
-
-    for N in particles:
-        model = XY_Monte_Carlo(
-            temp=0.6,
-            n_particles_1d=N,
-            external_field=0,
-            n_sweeps=10000,
-        )
-
-        save_lattice_plot(model, initial=True)
-
-        data = model.full_transition()
-
-        save_lattice_plot(model, initial=False)
-        save_stored_plots(model, data)
-
-        save_simulation_data(
-            filename=simulation_data_filename(model),
-            data=data,
-            metadata=simulation_metadata(model),
-        )
-
-    print("Done all no-field simulations")
-
-
-def experiment_5():
-
-    model = XY_Monte_Carlo(
-        temp=0.5,
-        n_particles_1d=50,
-        external_field=0,
-        n_sweeps=50000,
-    )
-
-    save_lattice_plot(model, initial=True)
-
-    data = model.full_transition()
-
-    save_lattice_plot(model, initial=False)
-    save_stored_plots(model, data)
-
-    save_simulation_data(
-        filename=simulation_data_filename(model),
-        data=data,
-        metadata=simulation_metadata(model),
-    )
-
-    print("Done all no-field simulations")
-
-
-from analysis import autocorrelation_time
-
-
-def tau_test():
-    temps = np.arange(0.5, 2.5 + 0.001, 0.2)
-    N = 50
-    n_sweeps = 5000
-
-    for T in temps:
-        model = XY_Monte_Carlo(
-            temp=T,
-            n_particles_1d=N,
-            external_field=0,
-            n_sweeps=n_sweeps,
-        )
-
-        data = model.full_transition()
-
-        tau = autocorrelation_time(data.magnetization_data)
-
-        print(
-            f"T={T:.2f}, "
-            f"N={N}, "
-            f"tau={tau:.2f} sweeps, "
-            f"block_size={int(16 * tau)}"
-        )
-
-
-def analyze_no_field_results():
-    results = analyze_data_folder("data")
-
-    summary_file = "analysis/summary_no_field.csv"
-
-    save_analysis_summary(
-        results,
-        filename=summary_file,
-    )
-
-    make_standard_plots(
-        summary_file=summary_file,
-        output_folder="analysis_plots/no_field",
-    )
-
-    print("Done no-field analysis")
-
-
-if __name__ == "__main__":
-    # experiment_4()
-    analyze_no_field_results()

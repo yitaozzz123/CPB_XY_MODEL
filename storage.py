@@ -13,6 +13,8 @@ def save_simulation_data(filename, data, metadata):
         n_antivortices=np.array(data.n_antivortices),
         vortex_density=np.array(data.vortex_density),
         metadata=np.array(metadata, dtype=object),
+        energy_moving_average=np.array(data.energy_moving_average),
+        thermalization_cut=np.array(data.thermalization_cut),
     )
 
 

@@ -2,7 +2,9 @@ from pathlib import Path
 
 
 def has_external_field(model):
-    return model.external_field is not None and model.external_field != 0
+    return (
+        model.external_field_strength is not None and model.external_field_strength != 0
+    )
 
 
 def results_folder(model):
@@ -21,7 +23,7 @@ def base_filename(model):
     name = f"T_{model.temp:04.2f}_N_{model.n_particles_1d:03d}"
 
     if has_external_field(model):
-        name += f"_h_{model.external_field:04.2f}"
+        name += f"_h_{model.external_field_strength:04.2f}"
 
     return name
 
@@ -45,12 +47,6 @@ def transitions_filename(model):
     return folder / f"{base_filename(model)}_transitions.pdf"
 
 
-def simulation_data_filename(model):
-    folder = data_folder(model)
-    folder.mkdir(parents=True, exist_ok=True)
-    return folder / f"{base_filename(model)}_data.npz"
-
-
 def energy_filename(model):
     folder = results_folder(model)
     folder.mkdir(parents=True, exist_ok=True)
@@ -67,3 +63,21 @@ def vortex_count_filename(model):
     folder = results_folder(model)
     folder.mkdir(parents=True, exist_ok=True)
     return folder / f"{base_filename(model)}_vortex_counts.pdf"
+
+
+def data_folder(model, force_field_folder=False):
+    if force_field_folder or has_external_field(model):
+        return Path("data_with_field")
+    return Path("data")
+
+
+def simulation_data_filename(model, force_field_folder=False):
+    folder = data_folder(model, force_field_folder=force_field_folder)
+    folder.mkdir(parents=True, exist_ok=True)
+
+    name = base_filename(model)
+
+    if force_field_folder and not has_external_field(model):
+        name += "_h_0.00"
+
+    return folder / f"{name}_data.npz"
