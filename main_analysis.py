@@ -6,6 +6,7 @@ from cross_analysis import (
     make_field_temperature_comparison_plots,
     plot_KT_fit,
 )
+import pandas as pd
 
 no_field_results = analyze_data_folder("data")
 save_analysis_summary(
@@ -25,8 +26,6 @@ make_temperature_power_law_plots(
     output_folder="analysis_no_field/power_law_plots",
     fit_summary_file="analysis_no_field/power_law_fit_summary.csv",
 )
-
-import pandas as pd
 
 summary = pd.read_csv("analysis_no_field/summary.csv")
 
