@@ -17,7 +17,8 @@ class XY_Monte_Carlo:
         self,
         temp,
         n_particles_1d,
-        external_field=0,
+        external_field_strength=0,
+        external_field_angle=0,
         all_up=False,
         seed=None,
         n_sweeps=1000,
@@ -25,7 +26,8 @@ class XY_Monte_Carlo:
         self.temp = temp
         self.n_particles_1d = n_particles_1d
         self.all_up = all_up
-        self.external_field = external_field
+        self.external_field_strength = external_field_strength
+        self.external_field_angle = external_field_angle
         self.rng = np.random.default_rng(seed=seed)
         self.n_sweeps = n_sweeps
 
@@ -33,7 +35,6 @@ class XY_Monte_Carlo:
         self.n_particles = n_particles_1d**self.n_dim
         self.transition_counter = 0
         self.energy_per_spin = 0
-        self.h_field = 0
         self.boltzmann_constant = 1
 
         self.nearest_neighbours = self.define_near_neigh()
@@ -88,13 +89,10 @@ class XY_Monte_Carlo:
                         )
                     )
 
-                """
-                # external field contribution
-                field = self.field[i, j]
-                field_magnitude = np.sqrt(np.dot(field, field))
-                field_angle = np.arctan2(field)
-                energy += field_magnitude * np.cos(self.state[i, j] - field_angle)
-                """
+                energy += -self.external_field_strength * np.cos(
+                    self.state[i, j] - self.external_field_angle
+                )
+
         return energy
 
     def define_near_neigh(self):
@@ -152,14 +150,12 @@ class XY_Monte_Carlo:
             )
 
         # field contribution
-        """
-        field = self.field[*particle_index]
-        field_magnitude = np.sqrt(np.dot(field, field))
-        field_angle = np.arctan2(field)
-
-        energy -= field_magnitude * np.cos(old_angle - field_angle)
-        energy += field_magnitude * np.cos(new_angle - field_angle)
-        """
+        energy -= -self.external_field_strength * np.cos(
+            old_angle - self.external_field_angle
+        )
+        energy += -self.external_field_strength * np.cos(
+            new_angle - self.external_field_angle
+        )
 
         return energy
 
