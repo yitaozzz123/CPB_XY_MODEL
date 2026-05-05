@@ -142,12 +142,8 @@ class XY_Monte_Carlo:
                 np.array(particle_index) + self.nearest_neighbours[k],
                 self.n_particles_1d,
             )
-            energy -= (
-                -0.5 * self.J * np.cos(old_angle - self.state[*nearest_neighbour_index])
-            )
-            energy += (
-                -0.5 * self.J * np.cos(new_angle - self.state[*nearest_neighbour_index])
-            )
+            energy -= -self.J * np.cos(old_angle - self.state[*nearest_neighbour_index])
+            energy += -self.J * np.cos(new_angle - self.state[*nearest_neighbour_index])
 
         # field contribution
         energy -= -self.external_field_strength * np.cos(
