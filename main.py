@@ -227,7 +227,7 @@ def simulation_metadata(model):
     }
 
 
-def experiment_1():
+def simulations_no_field():
     temps = np.arange(0.5, 2.5 + 0.001, 0.2)
     particles = [10, 20, 50]
 
@@ -298,6 +298,59 @@ def experiment_3():
     )
 
 
+def experiment_4():
+
+    particles = [10, 20, 50]
+
+    for N in particles:
+        model = XY_Monte_Carlo(
+            temp=0.6,
+            n_particles_1d=N,
+            external_field=0,
+            n_sweeps=10000,
+        )
+
+        save_lattice_plot(model, initial=True)
+
+        data = model.full_transition()
+
+        save_lattice_plot(model, initial=False)
+        save_stored_plots(model, data)
+
+        save_simulation_data(
+            filename=simulation_data_filename(model),
+            data=data,
+            metadata=simulation_metadata(model),
+        )
+
+    print("Done all no-field simulations")
+
+
+def experiment_5():
+
+    model = XY_Monte_Carlo(
+        temp=0.5,
+        n_particles_1d=50,
+        external_field=0,
+        n_sweeps=50000,
+    )
+
+    save_lattice_plot(model, initial=True)
+
+    data = model.full_transition()
+
+    save_lattice_plot(model, initial=False)
+    save_stored_plots(model, data)
+
+    save_simulation_data(
+        filename=simulation_data_filename(model),
+        data=data,
+        metadata=simulation_metadata(model),
+    )
+
+    print("Done all no-field simulations")
+
+
 from analysis import autocorrelation_time
 
 
@@ -345,5 +398,5 @@ def analyze_no_field_results():
 
 
 if __name__ == "__main__":
-    experiment_1()
+    # experiment_4()
     analyze_no_field_results()

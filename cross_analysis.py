@@ -4,7 +4,6 @@ from analysis import analyze_simulation
 from storage import load_simulation_data
 import pandas as pd
 import matplotlib.pyplot as plt
-from pathlib import Path
 
 
 def analyze_data_folder(data_folder="data"):
