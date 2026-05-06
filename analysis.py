@@ -1,87 +1,132 @@
+"""Analysis utilities for XY Monte Carlo simulation data."""
+
 import numpy as np
 
 
-def autocorrelation(series, lag):
+def autocorrelation(series: np.ndarray | list[float], lag: int) -> float:
+    """Return the autocorrelation of a time series at a given lag."""
     series = np.asarray(series)
-    n = len(series) - lag
+    n_samples = len(series) - lag
 
-    if n <= 0:
+    if n_samples <= 0:
         raise ValueError("lag is too large for this series")
 
-    x = series[:n]
-    y = series[lag:]
+    first_series = series[:n_samples]
+    shifted_series = series[lag:]
 
-    return np.mean(x * y) - np.mean(x) * np.mean(y)
+    return float(
+        np.mean(first_series * shifted_series)
+        - np.mean(first_series) * np.mean(shifted_series)
+    )
 
 
-def autocorrelation_time(magnetization_series):
-    c0 = autocorrelation(magnetization_series, 0)
+def autocorrelation_time(magnetization_series: np.ndarray | list[float]) -> float:
+    """Estimate the integrated autocorrelation time of a magnetization series."""
+    reference_autocorrelation = autocorrelation(magnetization_series, 0)
 
-    if c0 == 0:
+    if reference_autocorrelation == 0:
         return 0.0
 
     tau = 0.0
 
     for lag in range(len(magnetization_series)):
-        c_lag = autocorrelation(magnetization_series, lag)
+        current_autocorrelation = autocorrelation(magnetization_series, lag)
 
-        if c_lag < 0:
+        if current_autocorrelation < 0:
             break
 
-        tau += c_lag / c0
+        tau += current_autocorrelation / reference_autocorrelation
 
-    return tau
+    return float(tau)
 
 
-def block_series(series, block_size):
+def block_series(
+    series: np.ndarray | list[float],
+    block_size: int,
+) -> np.ndarray:
+    """Split a time series into equal-size blocks."""
+    if block_size <= 0:
+        raise ValueError("block_size must be positive")
+
     series = np.asarray(series)
     n_blocks = len(series) // block_size
 
     if n_blocks == 0:
         raise ValueError("block_size is larger than the data series")
 
-    trimmed = series[: n_blocks * block_size]
-    return trimmed.reshape(n_blocks, block_size)
+    trimmed_series = series[: n_blocks * block_size]
+
+    return trimmed_series.reshape(n_blocks, block_size)
 
 
-def mean_and_std_with_tau(series, tau):
+def mean_and_std_with_tau(
+    series: np.ndarray | list[float],
+    tau: float,
+) -> tuple[float, float]:
+    """Return the mean and autocorrelation-corrected standard error."""
     series = np.asarray(series)
 
     mean = np.mean(series)
-    var = np.var(series)
-    N = len(series)
+    variance = np.var(series)
+    n_samples = len(series)
 
-    std = np.sqrt(2 * tau / N * var)
+    standard_error = np.sqrt(2 * tau / n_samples * variance)
 
-    return mean, std
+    return float(mean), float(standard_error)
 
 
-def mean_and_std_from_blocks(series, block_size):
+def mean_and_std_from_blocks(
+    series: np.ndarray | list[float],
+    block_size: int,
+) -> tuple[float, float]:
+    """Return the mean and standard deviation of block averages."""
     blocks = block_series(series, block_size)
     block_means = np.mean(blocks, axis=1)
 
-    return np.mean(block_means), np.std(block_means, ddof=1)
+    return float(np.mean(block_means)), float(np.std(block_means, ddof=1))
 
 
-def magnetic_susceptibility_per_spin(magnetization_series, beta, n_particles):
+def magnetic_susceptibility_per_spin(
+    magnetization_series: np.ndarray | list[float],
+    beta: float,
+    n_particles: int,
+) -> float:
+    """Return the magnetic susceptibility per spin."""
     magnetization_series = np.asarray(magnetization_series)
-    return beta * n_particles * np.var(magnetization_series)
+
+    return float(beta * n_particles * np.var(magnetization_series))
 
 
-def specific_heat_per_spin(energy_series, beta, temp, n_particles):
+def specific_heat_per_spin(
+    energy_series: np.ndarray | list[float],
+    beta: float,
+    temperature: float,
+    n_particles: int,
+) -> float:
+    """Return the specific heat per spin."""
     energy_series = np.asarray(energy_series)
-    return beta / (n_particles * temp) * np.var(energy_series)
+
+    return float(beta / (n_particles * temperature) * np.var(energy_series))
 
 
-def block_observable(series, block_size, observable_function, **params):
+def block_observable(
+    series: np.ndarray | list[float],
+    block_size: int,
+    observable_function,
+    **parameters,
+) -> tuple[float, float]:
+    """Return the mean and standard deviation of a block observable."""
     blocks = block_series(series, block_size)
 
-    values = np.array([observable_function(block, **params) for block in blocks])
+    observable_values = np.array(
+        [observable_function(block, **parameters) for block in blocks]
+    )
 
-    return np.mean(values), np.std(values, ddof=1)
+    return float(np.mean(observable_values)), float(np.std(observable_values, ddof=1))
 
 
-def analyze_simulation(loaded_data):
+def analyze_simulation(loaded_data) -> dict:
+    """Analyse one loaded simulation archive and return summary observables."""
     thermalization_cut = int(loaded_data.get("thermalization_cut", 0))
     metadata = loaded_data["metadata"].item()
 
@@ -95,10 +140,16 @@ def analyze_simulation(loaded_data):
     tau = autocorrelation_time(magnetization)
     block_size = max(1, int(16 * tau))
 
-    mean_M, std_M = mean_and_std_with_tau(magnetization, tau)
-    mean_E, std_E = mean_and_std_with_tau(energy_per_spin, tau)
+    mean_magnetization, std_magnetization = mean_and_std_with_tau(
+        magnetization,
+        tau,
+    )
+    mean_energy, std_energy = mean_and_std_with_tau(
+        energy_per_spin,
+        tau,
+    )
 
-    chi_M, std_chi_M = block_observable(
+    susceptibility, std_susceptibility = block_observable(
         magnetization,
         block_size,
         magnetic_susceptibility_per_spin,
@@ -106,12 +157,12 @@ def analyze_simulation(loaded_data):
         n_particles=metadata["n_particles"],
     )
 
-    C, std_C = block_observable(
+    specific_heat, std_specific_heat = block_observable(
         energy,
         block_size,
         specific_heat_per_spin,
         beta=metadata["beta"],
-        temp=metadata["temp"],
+        temperature=metadata["temp"],
         n_particles=metadata["n_particles"],
     )
 
@@ -140,14 +191,14 @@ def analyze_simulation(loaded_data):
         "J": metadata["J"],
         "tau": tau,
         "block_size": block_size,
-        "mean_absolute_spin": mean_M,
-        "std_mean_absolute_spin": std_M,
-        "energy_per_spin": mean_E,
-        "std_energy_per_spin": std_E,
-        "magnetic_susceptibility_per_spin": chi_M,
-        "std_magnetic_susceptibility_per_spin": std_chi_M,
-        "specific_heat_per_spin": C,
-        "std_specific_heat_per_spin": std_C,
+        "mean_absolute_spin": mean_magnetization,
+        "std_mean_absolute_spin": std_magnetization,
+        "energy_per_spin": mean_energy,
+        "std_energy_per_spin": std_energy,
+        "magnetic_susceptibility_per_spin": susceptibility,
+        "std_magnetic_susceptibility_per_spin": std_susceptibility,
+        "specific_heat_per_spin": specific_heat,
+        "std_specific_heat_per_spin": std_specific_heat,
         "mean_vortex_density": mean_vortex_density,
         "std_vortex_density": std_vortex_density,
         "mean_n_vortices": mean_n_vortices,

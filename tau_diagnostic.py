@@ -1,39 +1,41 @@
+"""Diagnostic tools for autocorrelation times and block-size estimates."""
+
 from pathlib import Path
+
 import pandas as pd
 
-from storage import load_simulation_data
 from analysis import autocorrelation_time
+from storage import load_simulation_data
 
 
-def inspect_folder(folder):
+def inspect_folder(folder: str | Path) -> pd.DataFrame:
+    """Analyse all simulations in a folder and estimate autocorrelation issues."""
     results = []
 
     for filename in sorted(Path(folder).glob("*_data.npz")):
+        loaded_data = load_simulation_data(filename)
 
-        loaded = load_simulation_data(filename)
+        thermalization_cut = int(loaded_data.get("thermalization_cut", 0))
 
-        thermalization_cut = int(loaded.get("thermalization_cut", 0))
-
-        magnetization = loaded["magnetization_data"][thermalization_cut:]
+        magnetization = loaded_data["magnetization_data"][thermalization_cut:]
 
         tau = autocorrelation_time(magnetization)
 
         n_samples = len(magnetization)
-
         suggested_block_size = int(16 * tau)
 
         problematic = suggested_block_size >= n_samples
 
-        metadata = loaded["metadata"].item()
+        metadata = loaded_data["metadata"].item()
 
         results.append(
             {
                 "file": str(filename),
                 "temp": metadata["temp"],
-                "N": metadata["n_particles_1d"],
+                "n_particles_1d": metadata["n_particles_1d"],
                 "external_field": metadata["external_field"],
                 "tau": tau,
-                "16_tau": suggested_block_size,
+                "suggested_block_size": suggested_block_size,
                 "n_samples": n_samples,
                 "problematic": problematic,
             }
@@ -42,32 +44,48 @@ def inspect_folder(folder):
     return pd.DataFrame(results)
 
 
-df1 = inspect_folder("data")
-df2 = inspect_folder("data_with_field")
+def print_problematic_simulations(dataframe: pd.DataFrame) -> None:
+    """Print simulations whose suggested block size exceeds the sample count."""
+    problematic_dataframe = dataframe[dataframe["problematic"]]
 
-df = pd.concat([df1, df2], ignore_index=True)
+    print("\n=== Problematic simulations ===\n")
 
-problematic_df = df[df["problematic"]]
+    if len(problematic_dataframe) == 0:
+        print("No problematic tau values found.")
+        return
 
-print("\n=== Problematic simulations ===\n")
+    columns = [
+        "temp",
+        "n_particles_1d",
+        "external_field",
+        "tau",
+        "suggested_block_size",
+        "n_samples",
+        "file",
+    ]
 
-if len(problematic_df) == 0:
-    print("No problematic tau values found.")
-else:
-    print(
-        problematic_df[
-            [
-                "temp",
-                "N",
-                "external_field",
-                "tau",
-                "16_tau",
-                "n_samples",
-                "file",
-            ]
-        ]
+    print(problematic_dataframe[columns])
+
+
+def main() -> None:
+    """Run autocorrelation diagnostics for all stored simulations."""
+    no_field_dataframe = inspect_folder("data")
+    field_dataframe = inspect_folder("data_with_field")
+
+    diagnostics_dataframe = pd.concat(
+        [no_field_dataframe, field_dataframe],
+        ignore_index=True,
     )
 
-df.to_csv("tau_diagnostics.csv", index=False)
+    print_problematic_simulations(diagnostics_dataframe)
 
-print("\nSaved full diagnostics to tau_diagnostics.csv")
+    diagnostics_dataframe.to_csv(
+        "tau_diagnostics.csv",
+        index=False,
+    )
+
+    print("\nSaved full diagnostics to tau_diagnostics.csv")
+
+
+if __name__ == "__main__":
+    main()

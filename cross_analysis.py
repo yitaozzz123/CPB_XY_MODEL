@@ -1,13 +1,20 @@
+"""Cross-simulation analysis and plotting utilities."""
+
 from pathlib import Path
 import csv
-from analysis import analyze_simulation
-from storage import load_simulation_data
-import pandas as pd
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+
+from analysis import analyze_simulation
+from storage import load_simulation_data
+
+CRITICAL_TEMPERATURE = 0.88
 
 
-def analyze_data_folder(data_folder="data"):
+def analyze_data_folder(data_folder: str | Path = "data") -> list[dict]:
+    """Analyse all simulation archives in a folder."""
     data_folder = Path(data_folder)
     results = []
 
@@ -20,7 +27,8 @@ def analyze_data_folder(data_folder="data"):
     return results
 
 
-def save_analysis_summary(results, filename="analysis_summary.csv"):
+def save_analysis_summary(results: list[dict], filename: str | Path) -> None:
+    """Save analysis results to a CSV file."""
     if len(results) == 0:
         raise ValueError("No analysis results to save.")
 
@@ -35,70 +43,69 @@ def save_analysis_summary(results, filename="analysis_summary.csv"):
         writer.writerows(results)
 
 
+def load_summary(filename: str | Path) -> pd.DataFrame:
+    """Load a CSV summary file."""
+    return pd.read_csv(filename)
+
+
 def plot_with_error_band(
     ax,
-    x,
-    y,
-    yerr=None,
-    label=None,
-    marker="o",
-    linestyle="-",
-):
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    y_errors: np.ndarray | None = None,
+    label: str | None = None,
+    marker: str = "o",
+    linestyle: str = "-",
+) -> None:
+    """Plot values and optionally draw an error band."""
     ax.plot(
-        x,
-        y,
+        x_values,
+        y_values,
         marker=marker,
         linestyle=linestyle,
         label=label,
     )
 
-    if yerr is not None:
+    if y_errors is not None:
         ax.fill_between(
-            x,
-            y - yerr,
-            y + yerr,
+            x_values,
+            y_values - y_errors,
+            y_values + y_errors,
             alpha=0.15,
         )
 
 
-def load_summary(filename):
-    return pd.read_csv(filename)
-
-
 def plot_vs_temperature(
-    summary,
-    observable,
-    error=None,
-    external_field=None,
-    output_folder="analysis_plots",
-):
-    df = summary.copy()
+    summary: pd.DataFrame,
+    observable: str,
+    error: str | None = None,
+    external_field: float | None = None,
+    output_folder: str | Path = "analysis_plots",
+) -> None:
+    """Plot one observable as a function of temperature."""
+    dataframe = summary.copy()
 
     if external_field is not None:
-        df = df[df["external_field"] == external_field]
+        dataframe = dataframe[dataframe["external_field"] == external_field]
 
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    for n_particles_1d, group in df.groupby("n_particles_1d"):
+    for lattice_size, group in dataframe.groupby("n_particles_1d"):
         group = group.sort_values("temp")
 
-        x = group["temp"].to_numpy()
-        y = group[observable].to_numpy()
-
-        if error is not None:
-            yerr = group[error].to_numpy()
-        else:
-            yerr = None
+        temperatures = group["temp"].to_numpy()
+        values = group[observable].to_numpy()
+        errors = group[error].to_numpy() if error is not None else None
 
         plot_with_error_band(
             ax,
-            x,
-            y,
-            yerr=yerr,
-            label=f"N={n_particles_1d}",
+            temperatures,
+            values,
+            y_errors=errors,
+            label=f"N={lattice_size}",
         )
 
     ax.set_xlabel("Temperature")
@@ -106,7 +113,6 @@ def plot_vs_temperature(
     ax.set_title(f"{observable} vs temperature")
     ax.grid(True, alpha=0.3)
     ax.legend()
-
     fig.tight_layout()
 
     if external_field is None:
@@ -119,39 +125,36 @@ def plot_vs_temperature(
 
 
 def plot_vs_external_field(
-    summary,
-    observable,
-    error=None,
-    temperature=None,
-    output_folder="analysis_plots",
-):
-    df = summary.copy()
+    summary: pd.DataFrame,
+    observable: str,
+    error: str | None = None,
+    temperature: float | None = None,
+    output_folder: str | Path = "analysis_plots",
+) -> None:
+    """Plot one observable as a function of external field."""
+    dataframe = summary.copy()
 
     if temperature is not None:
-        df = df[df["temp"] == temperature]
+        dataframe = dataframe[dataframe["temp"] == temperature]
 
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    for n_particles_1d, group in df.groupby("n_particles_1d"):
+    for lattice_size, group in dataframe.groupby("n_particles_1d"):
         group = group.sort_values("external_field")
 
-        x = group["external_field"].to_numpy()
-        y = group[observable].to_numpy()
-
-        if error is not None:
-            yerr = group[error].to_numpy()
-        else:
-            yerr = None
+        external_fields = group["external_field"].to_numpy()
+        values = group[observable].to_numpy()
+        errors = group[error].to_numpy() if error is not None else None
 
         plot_with_error_band(
             ax,
-            x,
-            y,
-            yerr=yerr,
-            label=f"N={n_particles_1d}",
+            external_fields,
+            values,
+            y_errors=errors,
+            label=f"N={lattice_size}",
         )
 
     ax.set_xlabel("External field")
@@ -159,7 +162,6 @@ def plot_vs_external_field(
     ax.set_title(f"{observable} vs external field")
     ax.grid(True, alpha=0.3)
     ax.legend()
-
     fig.tight_layout()
 
     if temperature is None:
@@ -171,15 +173,9 @@ def plot_vs_external_field(
     plt.close(fig)
 
 
-def make_standard_plots(
-    summary_file,
-    output_folder="analysis_plots",
-    make_temperature_plots=True,
-    make_field_plots=True,
-):
-    summary = load_summary(summary_file)
-
-    observables = [
+def standard_observables() -> list[tuple[str, str | None]]:
+    """Return the standard observables and their error columns."""
+    return [
         ("mean_absolute_spin", "std_mean_absolute_spin"),
         ("energy_per_spin", "std_energy_per_spin"),
         ("magnetic_susceptibility_per_spin", "std_magnetic_susceptibility_per_spin"),
@@ -188,7 +184,17 @@ def make_standard_plots(
         ("tau", None),
     ]
 
-    for observable, error in observables:
+
+def make_standard_plots(
+    summary_file: str | Path,
+    output_folder: str | Path = "analysis_plots",
+    make_temperature_plots: bool = True,
+    make_field_plots: bool = True,
+) -> None:
+    """Create the standard temperature and field plots."""
+    summary = load_summary(summary_file)
+
+    for observable, error in standard_observables():
         if make_temperature_plots:
             plot_vs_temperature(
                 summary,
@@ -207,22 +213,22 @@ def make_standard_plots(
 
 
 def plot_loglog(
-    summary,
-    x_column,
-    y_column,
-    error=None,
-    output_folder="analysis_plots",
-):
-    df = summary.copy()
-
-    df = df[(df[x_column] > 0) & (df[y_column] > 0)]
+    summary: pd.DataFrame,
+    x_column: str,
+    y_column: str,
+    error: str | None = None,
+    output_folder: str | Path = "analysis_plots",
+) -> None:
+    """Create a log-log plot of one observable against another."""
+    dataframe = summary.copy()
+    dataframe = dataframe[(dataframe[x_column] > 0) & (dataframe[y_column] > 0)]
 
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    for n_particles_1d, group in df.groupby("n_particles_1d"):
+    for lattice_size, group in dataframe.groupby("n_particles_1d"):
         group = group.sort_values(x_column)
 
         if error is not None:
@@ -232,7 +238,7 @@ def plot_loglog(
                 yerr=group[error],
                 marker="o",
                 linestyle="-",
-                label=f"N={n_particles_1d}",
+                label=f"N={lattice_size}",
             )
         else:
             ax.plot(
@@ -240,18 +246,16 @@ def plot_loglog(
                 group[y_column],
                 marker="o",
                 linestyle="-",
-                label=f"N={n_particles_1d}",
+                label=f"N={lattice_size}",
             )
 
     ax.set_xscale("log")
     ax.set_yscale("log")
-
     ax.set_xlabel(x_column)
     ax.set_ylabel(y_column)
     ax.set_title(f"log-log plot: {y_column} vs {x_column}")
     ax.grid(True, alpha=0.3)
     ax.legend()
-
     fig.tight_layout()
 
     filename = output_folder / f"loglog_{y_column}_vs_{x_column}.pdf"
@@ -260,18 +264,18 @@ def plot_loglog(
 
 
 def plot_temperature_power_law(
-    summary,
-    observable,
-    error=None,
-    output_folder="analysis_plots",
-):
-    df = summary.copy()
+    summary: pd.DataFrame,
+    observable: str,
+    error: str | None = None,
+    output_folder: str | Path = "analysis_plots",
+) -> list[dict]:
+    """Plot a power-law test against distance from the critical temperature."""
+    dataframe = summary.copy()
 
-    critical_temperature = 0.88
-
-    df["distance_from_tc"] = np.abs(df["temp"] - critical_temperature)
-
-    df = df[(df["distance_from_tc"] > 0) & (df[observable] > 0)]
+    dataframe["distance_from_tc"] = np.abs(dataframe["temp"] - CRITICAL_TEMPERATURE)
+    dataframe = dataframe[
+        (dataframe["distance_from_tc"] > 0) & (dataframe[observable] > 0)
+    ]
 
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
@@ -280,40 +284,40 @@ def plot_temperature_power_law(
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    for n_particles_1d, group in df.groupby("n_particles_1d"):
+    for lattice_size, group in dataframe.groupby("n_particles_1d"):
         group = group.sort_values("temp")
 
-        x = group["distance_from_tc"].to_numpy()
-        y = group[observable].to_numpy()
+        distances = group["distance_from_tc"].to_numpy()
+        values = group[observable].to_numpy()
 
         ax.plot(
-            x,
-            y,
+            distances,
+            values,
             marker="o",
             linestyle="None",
-            label=f"N={n_particles_1d}",
+            label=f"N={lattice_size}",
         )
 
-        if len(x) >= 2:
-            log_x = np.log(x)
-            log_y = np.log(y)
+        if len(distances) >= 2:
+            log_distances = np.log(distances)
+            log_values = np.log(values)
 
-            slope, intercept = np.polyfit(log_x, log_y, 1)
+            slope, intercept = np.polyfit(log_distances, log_values, 1)
 
-            x_fit = np.linspace(x.min(), x.max(), 200)
-            y_fit = np.exp(intercept) * x_fit**slope
+            distances_fit = np.linspace(distances.min(), distances.max(), 200)
+            values_fit = np.exp(intercept) * distances_fit**slope
 
             ax.plot(
-                x_fit,
-                y_fit,
+                distances_fit,
+                values_fit,
                 linestyle="--",
-                label=f"N={n_particles_1d}, alpha={slope:.3f}",
+                label=f"N={lattice_size}, alpha={slope:.3f}",
             )
 
             fit_results.append(
                 {
                     "observable": observable,
-                    "n_particles_1d": n_particles_1d,
+                    "n_particles_1d": lattice_size,
                     "power_law_exponent": slope,
                     "prefactor": np.exp(intercept),
                 }
@@ -321,13 +325,11 @@ def plot_temperature_power_law(
 
     ax.set_xscale("log")
     ax.set_yscale("log")
-
     ax.set_xlabel("|T - Tc|")
     ax.set_ylabel(observable)
-    ax.set_title(f"Power-law test: {observable} vs |T - Tc|, Tc={critical_temperature}")
+    ax.set_title(f"Power-law test: {observable} vs |T - Tc|, Tc={CRITICAL_TEMPERATURE}")
     ax.grid(True, alpha=0.3, which="both")
     ax.legend()
-
     fig.tight_layout()
 
     filename = output_folder / f"power_law_{observable}_vs_abs_T_minus_Tc.pdf"
@@ -338,31 +340,21 @@ def plot_temperature_power_law(
 
 
 def make_temperature_power_law_plots(
-    summary_file,
-    output_folder="analysis_plots",
-    fit_summary_file=None,
-):
+    summary_file: str | Path,
+    output_folder: str | Path = "analysis_plots",
+    fit_summary_file: str | Path | None = None,
+) -> list[dict]:
+    """Create power-law plots for all standard observables."""
     summary = load_summary(summary_file)
-
-    observables = [
-        ("mean_absolute_spin", "std_mean_absolute_spin"),
-        ("energy_per_spin", "std_energy_per_spin"),
-        ("magnetic_susceptibility_per_spin", "std_magnetic_susceptibility_per_spin"),
-        ("specific_heat_per_spin", "std_specific_heat_per_spin"),
-        ("mean_vortex_density", "std_vortex_density"),
-        ("tau", None),
-    ]
-
     all_fit_results = []
 
-    for observable, error in observables:
+    for observable, error in standard_observables():
         fit_results = plot_temperature_power_law(
             summary,
             observable=observable,
             error=error,
             output_folder=output_folder,
         )
-
         all_fit_results.extend(fit_results)
 
     if fit_summary_file is not None:
@@ -375,133 +367,127 @@ def make_temperature_power_law_plots(
 
 
 def plot_vs_external_field_by_temperature(
-    summary,
-    observable,
-    error=None,
-    n_particles_1d=20,
-    output_folder="analysis_plots",
-):
-    df = summary.copy()
-    df = df[df["n_particles_1d"] == n_particles_1d]
+    summary: pd.DataFrame,
+    observable: str,
+    error: str | None = None,
+    lattice_size: int = 20,
+    output_folder: str | Path = "analysis_plots",
+) -> None:
+    """Plot an observable against field strength for each temperature."""
+    dataframe = summary.copy()
+    dataframe = dataframe[dataframe["n_particles_1d"] == lattice_size]
 
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    for temp, group in df.groupby("temp"):
+    for temperature, group in dataframe.groupby("temp"):
         group = group.sort_values("external_field")
 
-        x = group["external_field"].to_numpy()
-        y = group[observable].to_numpy()
-
-        if error is not None:
-            yerr = group[error].to_numpy()
-        else:
-            yerr = None
+        external_fields = group["external_field"].to_numpy()
+        values = group[observable].to_numpy()
+        errors = group[error].to_numpy() if error is not None else None
 
         plot_with_error_band(
             ax,
-            x,
-            y,
-            yerr=yerr,
-            label=f"T={temp:.2f}",
+            external_fields,
+            values,
+            y_errors=errors,
+            label=f"T={temperature:.2f}",
         )
 
     ax.set_xlabel("External field")
     ax.set_ylabel(observable)
-    ax.set_title(f"{observable} vs external field, N={n_particles_1d}")
+    ax.set_title(f"{observable} vs external field, N={lattice_size}")
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=8)
-
     fig.tight_layout()
 
     filename = (
         output_folder
-        / f"{observable}_vs_external_field_by_temperature_N_{n_particles_1d}.pdf"
+        / f"{observable}_vs_external_field_by_temperature_N_{lattice_size}.pdf"
     )
     fig.savefig(filename, bbox_inches="tight")
     plt.close(fig)
 
 
 def make_field_temperature_comparison_plots(
-    summary_file,
-    output_folder="analysis_plots",
-    n_particles_1d=20,
-):
+    summary_file: str | Path,
+    output_folder: str | Path = "analysis_plots",
+    lattice_size: int = 20,
+) -> None:
+    """Create field-dependence plots grouped by temperature."""
     summary = load_summary(summary_file)
 
-    observables = [
-        ("mean_absolute_spin", "std_mean_absolute_spin"),
-        ("energy_per_spin", "std_energy_per_spin"),
-        ("magnetic_susceptibility_per_spin", "std_magnetic_susceptibility_per_spin"),
-        ("specific_heat_per_spin", "std_specific_heat_per_spin"),
-        ("mean_vortex_density", "std_vortex_density"),
-        ("tau", None),
-    ]
-
-    for observable, error in observables:
+    for observable, error in standard_observables():
         plot_vs_external_field_by_temperature(
             summary,
             observable=observable,
             error=error,
-            n_particles_1d=n_particles_1d,
+            lattice_size=lattice_size,
             output_folder=output_folder,
         )
 
 
 def plot_KT_fit(
-    summary,
-    observable,
-    Tc=0.88,
-    output_folder="analysis_plots",
-):
-    df = summary.copy()
+    summary: pd.DataFrame,
+    observable: str,
+    critical_temperature: float = CRITICAL_TEMPERATURE,
+    output_folder: str | Path = "analysis_plots",
+) -> None:
+    """Create a Kosterlitz-Thouless fit diagnostic plot."""
+    dataframe = summary.copy()
 
-    df["x"] = np.abs(df["temp"] - Tc)
-    df = df[(df["x"] > 0) & (df[observable] > 0)]
+    dataframe["distance_from_tc"] = np.abs(dataframe["temp"] - critical_temperature)
+    dataframe = dataframe[
+        (dataframe["distance_from_tc"] > 0) & (dataframe[observable] > 0)
+    ]
 
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    for N, group in df.groupby("n_particles_1d"):
-        group = group.sort_values("x")
+    for lattice_size, group in dataframe.groupby("n_particles_1d"):
+        group = group.sort_values("distance_from_tc")
 
-        x = group["x"].to_numpy()
-        y = group[observable].to_numpy()
+        distances = group["distance_from_tc"].to_numpy()
+        values = group[observable].to_numpy()
 
-        transformed_x = 1 / np.sqrt(x)
-        log_y = np.log(y)
+        transformed_distances = 1 / np.sqrt(distances)
+        log_values = np.log(values)
 
         ax.plot(
-            transformed_x,
-            log_y,
+            transformed_distances,
+            log_values,
             marker="o",
             linestyle="None",
-            label=f"N={N}",
+            label=f"N={lattice_size}",
         )
 
-        if len(x) >= 2:
-            slope, intercept = np.polyfit(transformed_x, log_y, 1)
+        if len(distances) >= 2:
+            slope, intercept = np.polyfit(transformed_distances, log_values, 1)
 
-            x_fit = np.linspace(transformed_x.min(), transformed_x.max(), 200)
-            y_fit = slope * x_fit + intercept
+            fit_distances = np.linspace(
+                transformed_distances.min(),
+                transformed_distances.max(),
+                200,
+            )
+            fit_values = slope * fit_distances + intercept
 
             ax.plot(
-                x_fit,
-                y_fit,
+                fit_distances,
+                fit_values,
                 linestyle="--",
-                label=f"N={N}, a={slope:.3f}",
+                label=f"N={lattice_size}, a={slope:.3f}",
             )
 
     ax.set_xlabel("1 / sqrt(|T - Tc|)")
     ax.set_ylabel(f"log({observable})")
-    ax.set_title(f"KT fit: {observable}, Tc={Tc}")
+    ax.set_title(f"KT fit: {observable}, Tc={critical_temperature}")
     ax.grid(True, alpha=0.3)
     ax.legend()
-
     fig.tight_layout()
 
     filename = output_folder / f"KT_fit_{observable}.pdf"

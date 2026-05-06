@@ -1,7 +1,18 @@
+"""Input/output utilities for storing and loading simulation data."""
+
+from pathlib import Path
+
 import numpy as np
 
+from data import SimulationData
 
-def save_simulation_data(filename, data, metadata):
+
+def save_simulation_data(
+    filename: str | Path,
+    data: SimulationData,
+    metadata: dict,
+) -> None:
+    """Save simulation observables and metadata to a compressed NumPy file."""
     np.savez(
         filename,
         magnetization_data=np.array(data.magnetization_data),
@@ -18,5 +29,6 @@ def save_simulation_data(filename, data, metadata):
     )
 
 
-def load_simulation_data(filename):
+def load_simulation_data(filename: str | Path) -> np.lib.npyio.NpzFile:
+    """Load simulation data from a NumPy archive."""
     return np.load(filename, allow_pickle=True)
