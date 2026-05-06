@@ -14,19 +14,20 @@ def make_seed(temp, n_particles_1d):
 
 
 def sweeps_for_configuration(temp, n_particles_1d):
-    if temp == 0.5 and n_particles_1d == 50:
+
+    if temp in [0.5, 0.6, 0.7] and n_particles_1d == 50:
         return 100_000
+
+    if temp in [0.8, 0.9, 0.95] and n_particles_1d == 50:
+        return 50_000
+
+    if temp in [0.85, 0.88, 1.0] and n_particles_1d == 50:
+        return 20_000
 
     if temp == 0.5 and n_particles_1d in [10, 20]:
         return 10_000
 
-    if temp == 0.6 and n_particles_1d in [10, 20, 50]:
-        return 10_000
-
-    if temp in [0.8, 0.85, 0.88, 0.9, 0.95, 1.0] and n_particles_1d == 50:
-        return 10_000
-
-    if temp == 0.7 and n_particles_1d == 50:
+    if temp == 0.6 and n_particles_1d in [10, 20]:
         return 10_000
 
     return 5_000
@@ -136,3 +137,32 @@ def run_external_field_scan():
         )
 
     print("Done all external-field simulations")
+
+
+"""def run_extra_temperature_scan_N50():
+    temps = np.array(
+        [
+            0.50,
+            0.60,
+            0.70,
+            0.80,
+            0.85,
+            0.88,
+            0.90,
+            0.95,
+            1.00,
+        ]
+    )
+
+    particles = [50]
+
+    combinations = list(product(temps, particles))
+
+    for T, N in tqdm(combinations, desc="Extra no-field simulations N=50"):
+        run_single_simulation(
+            temp=T,
+            n_particles_1d=N,
+            external_field_strength=0,
+        )
+
+    print("Done extra no-field simulations N=50")"""

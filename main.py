@@ -11,7 +11,7 @@ def run_script(script_name):
 
 def main():
     print("=== Running simulations ===")
-    run_script("main_simulations.py")
+    # run_script("main_simulations.py")
 
     print("=== Running analysis ===")
     run_script("main_analysis.py")
