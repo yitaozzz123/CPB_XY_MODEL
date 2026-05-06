@@ -1,10 +1,7 @@
-"""Entry point for running all XY Monte Carlo simulations."""
-
-from experiments import run_external_field_scan, run_temperature_scan
+from experiments import run_temperature_scan, run_external_field_scan
 
 
-def main() -> None:
-    """Run all simulation scans."""
+def main():
     run_temperature_scan()
     run_external_field_scan()
 
