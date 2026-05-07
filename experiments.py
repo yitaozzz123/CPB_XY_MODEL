@@ -145,7 +145,7 @@ def run_critical_temperature_rescan() -> None:
         (0.85, 50, 100_000),
         (0.88, 50, 200_000),
     ]
-
+    print("Starting")
     for temperature, lattice_size, n_sweeps in configurations:
         model = XYMonteCarlo(
             temp=temperature,
