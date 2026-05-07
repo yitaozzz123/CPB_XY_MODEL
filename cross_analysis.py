@@ -81,6 +81,7 @@ def plot_vs_temperature(
     error: str | None = None,
     external_field: float | None = None,
     output_folder: str | Path = "analysis_plots",
+    logy: bool = False,
 ) -> None:
     """Plot one observable as a function of temperature."""
     dataframe = summary.copy()
@@ -110,15 +111,22 @@ def plot_vs_temperature(
 
     ax.set_xlabel("Temperature")
     ax.set_ylabel(observable)
+    if logy:
+        ax.set_yscale("log")
     ax.set_title(f"{observable} vs temperature")
     ax.grid(True, alpha=0.3)
     ax.legend()
     fig.tight_layout()
 
     if external_field is None:
-        filename = output_folder / f"{observable}_vs_temperature.pdf"
+        suffix = "_logy" if logy else ""
+        filename = output_folder / f"{observable}_vs_temperature{suffix}.pdf"
     else:
-        filename = output_folder / f"{observable}_vs_temperature_h_{external_field}.pdf"
+        suffix = "_logy" if logy else ""
+        filename = (
+            output_folder
+            / f"{observable}_vs_temperature_h_{external_field}{suffix}.pdf"
+        )
 
     fig.savefig(filename, bbox_inches="tight")
     plt.close(fig)
@@ -212,160 +220,6 @@ def make_standard_plots(
             )
 
 
-def plot_loglog(
-    summary: pd.DataFrame,
-    x_column: str,
-    y_column: str,
-    error: str | None = None,
-    output_folder: str | Path = "analysis_plots",
-) -> None:
-    """Create a log-log plot of one observable against another."""
-    dataframe = summary.copy()
-    dataframe = dataframe[(dataframe[x_column] > 0) & (dataframe[y_column] > 0)]
-
-    output_folder = Path(output_folder)
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-
-    for lattice_size, group in dataframe.groupby("n_particles_1d"):
-        group = group.sort_values(x_column)
-
-        if error is not None:
-            ax.errorbar(
-                group[x_column],
-                group[y_column],
-                yerr=group[error],
-                marker="o",
-                linestyle="-",
-                label=f"N={lattice_size}",
-            )
-        else:
-            ax.plot(
-                group[x_column],
-                group[y_column],
-                marker="o",
-                linestyle="-",
-                label=f"N={lattice_size}",
-            )
-
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel(x_column)
-    ax.set_ylabel(y_column)
-    ax.set_title(f"log-log plot: {y_column} vs {x_column}")
-    ax.grid(True, alpha=0.3)
-    ax.legend()
-    fig.tight_layout()
-
-    filename = output_folder / f"loglog_{y_column}_vs_{x_column}.pdf"
-    fig.savefig(filename, bbox_inches="tight")
-    plt.close(fig)
-
-
-def plot_temperature_power_law(
-    summary: pd.DataFrame,
-    observable: str,
-    error: str | None = None,
-    output_folder: str | Path = "analysis_plots",
-) -> list[dict]:
-    """Plot a power-law test against distance from the critical temperature."""
-    dataframe = summary.copy()
-
-    dataframe["distance_from_tc"] = np.abs(dataframe["temp"] - CRITICAL_TEMPERATURE)
-    dataframe = dataframe[
-        (dataframe["distance_from_tc"] > 0) & (dataframe[observable] > 0)
-    ]
-
-    output_folder = Path(output_folder)
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    fit_results = []
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-
-    for lattice_size, group in dataframe.groupby("n_particles_1d"):
-        group = group.sort_values("temp")
-
-        distances = group["distance_from_tc"].to_numpy()
-        values = group[observable].to_numpy()
-
-        ax.plot(
-            distances,
-            values,
-            marker="o",
-            linestyle="None",
-            label=f"N={lattice_size}",
-        )
-
-        if len(distances) >= 2:
-            log_distances = np.log(distances)
-            log_values = np.log(values)
-
-            slope, intercept = np.polyfit(log_distances, log_values, 1)
-
-            distances_fit = np.linspace(distances.min(), distances.max(), 200)
-            values_fit = np.exp(intercept) * distances_fit**slope
-
-            ax.plot(
-                distances_fit,
-                values_fit,
-                linestyle="--",
-                label=f"N={lattice_size}, alpha={slope:.3f}",
-            )
-
-            fit_results.append(
-                {
-                    "observable": observable,
-                    "n_particles_1d": lattice_size,
-                    "power_law_exponent": slope,
-                    "prefactor": np.exp(intercept),
-                }
-            )
-
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel("|T - Tc|")
-    ax.set_ylabel(observable)
-    ax.set_title(f"Power-law test: {observable} vs |T - Tc|, Tc={CRITICAL_TEMPERATURE}")
-    ax.grid(True, alpha=0.3, which="both")
-    ax.legend()
-    fig.tight_layout()
-
-    filename = output_folder / f"power_law_{observable}_vs_abs_T_minus_Tc.pdf"
-    fig.savefig(filename, bbox_inches="tight")
-    plt.close(fig)
-
-    return fit_results
-
-
-def make_temperature_power_law_plots(
-    summary_file: str | Path,
-    output_folder: str | Path = "analysis_plots",
-    fit_summary_file: str | Path | None = None,
-) -> list[dict]:
-    """Create power-law plots for all standard observables."""
-    summary = load_summary(summary_file)
-    all_fit_results = []
-
-    for observable, error in standard_observables():
-        fit_results = plot_temperature_power_law(
-            summary,
-            observable=observable,
-            error=error,
-            output_folder=output_folder,
-        )
-        all_fit_results.extend(fit_results)
-
-    if fit_summary_file is not None:
-        fit_summary_file = Path(fit_summary_file)
-        fit_summary_file.parent.mkdir(parents=True, exist_ok=True)
-
-        pd.DataFrame(all_fit_results).to_csv(fit_summary_file, index=False)
-
-    return all_fit_results
-
-
 def plot_vs_external_field_by_temperature(
     summary: pd.DataFrame,
     observable: str,
@@ -428,68 +282,3 @@ def make_field_temperature_comparison_plots(
             lattice_size=lattice_size,
             output_folder=output_folder,
         )
-
-
-def plot_KT_fit(
-    summary: pd.DataFrame,
-    observable: str,
-    critical_temperature: float = CRITICAL_TEMPERATURE,
-    output_folder: str | Path = "analysis_plots",
-) -> None:
-    """Create a Kosterlitz-Thouless fit diagnostic plot."""
-    dataframe = summary.copy()
-
-    dataframe["distance_from_tc"] = np.abs(dataframe["temp"] - critical_temperature)
-    dataframe = dataframe[
-        (dataframe["distance_from_tc"] > 0) & (dataframe[observable] > 0)
-    ]
-
-    output_folder = Path(output_folder)
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-
-    for lattice_size, group in dataframe.groupby("n_particles_1d"):
-        group = group.sort_values("distance_from_tc")
-
-        distances = group["distance_from_tc"].to_numpy()
-        values = group[observable].to_numpy()
-
-        transformed_distances = 1 / np.sqrt(distances)
-        log_values = np.log(values)
-
-        ax.plot(
-            transformed_distances,
-            log_values,
-            marker="o",
-            linestyle="None",
-            label=f"N={lattice_size}",
-        )
-
-        if len(distances) >= 2:
-            slope, intercept = np.polyfit(transformed_distances, log_values, 1)
-
-            fit_distances = np.linspace(
-                transformed_distances.min(),
-                transformed_distances.max(),
-                200,
-            )
-            fit_values = slope * fit_distances + intercept
-
-            ax.plot(
-                fit_distances,
-                fit_values,
-                linestyle="--",
-                label=f"N={lattice_size}, a={slope:.3f}",
-            )
-
-    ax.set_xlabel("1 / sqrt(|T - Tc|)")
-    ax.set_ylabel(f"log({observable})")
-    ax.set_title(f"KT fit: {observable}, Tc={critical_temperature}")
-    ax.grid(True, alpha=0.3)
-    ax.legend()
-    fig.tight_layout()
-
-    filename = output_folder / f"KT_fit_{observable}.pdf"
-    fig.savefig(filename, bbox_inches="tight")
-    plt.close(fig)

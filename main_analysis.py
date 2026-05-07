@@ -1,14 +1,12 @@
 """Entry point for analysing XY Monte Carlo simulation data."""
 
 import pandas as pd
-
 from cross_analysis import (
     analyze_data_folder,
     make_field_temperature_comparison_plots,
     make_standard_plots,
-    make_temperature_power_law_plots,
-    plot_KT_fit,
     save_analysis_summary,
+    plot_vs_temperature,
 )
 
 
@@ -28,28 +26,6 @@ def analyse_no_field_data() -> None:
         make_field_plots=False,
     )
 
-    make_temperature_power_law_plots(
-        "analysis_no_field/summary.csv",
-        output_folder="analysis_no_field/power_law_plots",
-        fit_summary_file="analysis_no_field/power_law_fit_summary.csv",
-    )
-
-    summary = pd.read_csv("analysis_no_field/summary.csv")
-
-    kt_observables = [
-        "magnetic_susceptibility_per_spin",
-        "tau",
-        "mean_vortex_density",
-    ]
-
-    for observable in kt_observables:
-        plot_KT_fit(
-            summary,
-            observable=observable,
-            critical_temperature=0.88,
-            output_folder="analysis_no_field/KT_plots",
-        )
-
 
 def analyse_field_data() -> None:
     """Analyse simulations with external field and save standard plots."""
@@ -67,6 +43,15 @@ def analyse_field_data() -> None:
         make_field_plots=True,
     )
 
+    summary = pd.read_csv("analysis_no_field/summary.csv")
+
+    plot_vs_temperature(
+        summary,
+        observable="tau",
+        error=None,
+        output_folder="analysis_no_field/plots",
+        logy=True,
+    )
     make_field_temperature_comparison_plots(
         "analysis_with_field/summary.csv",
         output_folder="analysis_with_field/temperature_comparison_plots",
