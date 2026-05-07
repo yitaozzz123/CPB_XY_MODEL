@@ -127,6 +127,13 @@ def plot_vs_temperature(
     if logy:
         ax.set_yscale("log")
     ax.set_title(f"{observable} vs temperature")
+    ax.axvline(
+        x=CRITICAL_TEMPERATURE,
+        color="red",
+        linestyle="--",
+        linewidth=1.5,
+        label=r"$T_c = 0.88$",
+    )
     ax.grid(True, alpha=0.3)
     ax.legend()
     fig.tight_layout()
@@ -240,10 +247,24 @@ def plot_vs_external_field_by_temperature(
     error: str | None = None,
     lattice_size: int = 20,
     output_folder: str | Path = "analysis_plots",
+    logy: bool = False,
 ) -> None:
     """Plot an observable against field strength for each temperature."""
     dataframe = summary.copy()
     dataframe = dataframe[dataframe["n_particles_1d"] == lattice_size]
+
+    selected_temperatures = [0.5, 0.7, 0.88, 1.3, 2.5]
+
+    dataframe = dataframe[
+        np.any(
+            np.isclose(
+                dataframe["temp"].to_numpy()[:, None],
+                selected_temperatures,
+                atol=1e-6,
+            ),
+            axis=1,
+        )
+    ]
 
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
@@ -268,14 +289,18 @@ def plot_vs_external_field_by_temperature(
 
     ax.set_xlabel("External field")
     ax.set_ylabel(observable)
+    if logy:
+        ax.set_yscale("log")
     ax.set_title(f"{observable} vs external field, N={lattice_size}")
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=8)
     fig.tight_layout()
 
+    suffix = "_logy" if logy else ""
+
     filename = (
         output_folder
-        / f"{observable}_vs_external_field_by_temperature_N_{lattice_size}.pdf"
+        / f"{observable}_vs_external_field_by_temperature_N_{lattice_size}{suffix}.pdf"
     )
     fig.savefig(filename, bbox_inches="tight")
     plt.close(fig)
@@ -297,3 +322,21 @@ def make_field_temperature_comparison_plots(
             lattice_size=lattice_size,
             output_folder=output_folder,
         )
+
+    plot_vs_external_field_by_temperature(
+        summary,
+        observable="tau",
+        error=None,
+        lattice_size=lattice_size,
+        output_folder=output_folder,
+        logy=True,
+    )
+
+    plot_vs_external_field_by_temperature(
+        summary,
+        observable="magnetic_susceptibility_per_spin",
+        error="std_magnetic_susceptibility_per_spin",
+        lattice_size=lattice_size,
+        output_folder=output_folder,
+        logy=True,
+    )

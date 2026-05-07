@@ -226,12 +226,17 @@ def make_vortex_count_figure(data, style: dict | None = None):
         data.n_vortices,
         label="vortices (+1)",
         linewidth=style["linewidth"],
+        linestyle="-",
+        alpha=0.8,
     )
+
     ax.plot(
         sweeps,
         data.n_antivortices,
         label="antivortices (-1)",
         linewidth=style["linewidth"],
+        linestyle="--",
+        alpha=0.8,
     )
 
     ax.set_title("Vortices and antivortices vs sweep", fontsize=style["title_size"])
