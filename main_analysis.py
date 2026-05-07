@@ -52,6 +52,14 @@ def analyse_field_data() -> None:
         output_folder="analysis_no_field/plots",
         logy=True,
     )
+
+    plot_vs_temperature(
+        summary,
+        observable="magnetic_susceptibility_per_spin",
+        error="std_magnetic_susceptibility_per_spin",
+        output_folder="analysis_no_field/plots",
+        logy=True,
+    )
     make_field_temperature_comparison_plots(
         "analysis_with_field/summary.csv",
         output_folder="analysis_with_field/temperature_comparison_plots",

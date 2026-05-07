@@ -13,6 +13,18 @@ from storage import load_simulation_data
 CRITICAL_TEMPERATURE = 0.88
 
 
+def analysis_plot_style() -> dict:
+    """Return default style settings for analysis plots."""
+    return {
+        "figsize": (10, 6),
+        "linewidth": 1.8,
+        "title_size": 14,
+        "label_size": 12,
+        "tick_size": 10,
+        "grid_alpha": 0.3,
+    }
+
+
 def analyze_data_folder(data_folder: str | Path = "data") -> list[dict]:
     """Analyse all simulation archives in a folder."""
     data_folder = Path(data_folder)
@@ -92,7 +104,8 @@ def plot_vs_temperature(
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    style = analysis_plot_style()
+    fig, ax = plt.subplots(figsize=style["figsize"])
 
     for lattice_size, group in dataframe.groupby("n_particles_1d"):
         group = group.sort_values("temp")
@@ -148,7 +161,8 @@ def plot_vs_external_field(
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    style = analysis_plot_style()
+    fig, ax = plt.subplots(figsize=style["figsize"])
 
     for lattice_size, group in dataframe.groupby("n_particles_1d"):
         group = group.sort_values("external_field")
@@ -234,7 +248,8 @@ def plot_vs_external_field_by_temperature(
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    style = analysis_plot_style()
+    fig, ax = plt.subplots(figsize=style["figsize"])
 
     for temperature, group in dataframe.groupby("temp"):
         group = group.sort_values("external_field")
