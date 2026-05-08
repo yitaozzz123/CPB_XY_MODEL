@@ -74,6 +74,7 @@ def main() -> None:
     analyse_field_data()
 
     plot_tau_vs_temperature_for_fields()
+    print("hello")
 
 
 if __name__ == "__main__":
