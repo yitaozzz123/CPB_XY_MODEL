@@ -16,7 +16,7 @@ CRITICAL_TEMPERATURE = 0.88
 def analysis_plot_style() -> dict:
     """Return default style settings for analysis plots."""
     return {
-        "figsize": (6.5, 4),
+        "figsize": (5, 3.5),
         "linewidth": 1.8,
         "title_size": 14,
         "label_size": 12,
