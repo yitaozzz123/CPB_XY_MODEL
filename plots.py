@@ -219,6 +219,8 @@ def make_vortex_count_figure(data, style: dict | None = None):
 
     sweeps = np.arange(len(data.n_vortices))
 
+    difference = np.array(data.n_vortices) - np.array(data.n_antivortices)
+
     fig, ax = plt.subplots(figsize=style["figsize"])
 
     ax.plot(
@@ -227,16 +229,20 @@ def make_vortex_count_figure(data, style: dict | None = None):
         label="vortices (+1)",
         linewidth=style["linewidth"],
         linestyle="-",
-        alpha=0.8,
     )
 
     ax.plot(
         sweeps,
-        data.n_antivortices,
+        -data.n_antivortices,
         label="antivortices (-1)",
         linewidth=style["linewidth"],
         linestyle="--",
-        alpha=0.8,
+    )
+    ax.plot(
+        sweeps,
+        difference,
+        label="vortices - antivortices",
+        linewidth=style["linewidth"],
     )
 
     ax.set_title("Vortices and antivortices vs sweep", fontsize=style["title_size"])
