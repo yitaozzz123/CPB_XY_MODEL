@@ -70,8 +70,8 @@ def analyse_field_data() -> None:
 
 def main() -> None:
     """Run all analysis steps."""
-    # analyse_no_field_data()
-    # analyse_field_data()
+    analyse_no_field_data()
+    analyse_field_data()
 
     plot_tau_vs_temperature_for_fields()
 
