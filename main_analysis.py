@@ -8,6 +8,7 @@ from cross_analysis import (
     save_analysis_summary,
     plot_vs_temperature,
 )
+from analysis_temperature_vs_field import plot_tau_vs_temperature_for_fields
 
 
 def analyse_no_field_data() -> None:
@@ -69,8 +70,10 @@ def analyse_field_data() -> None:
 
 def main() -> None:
     """Run all analysis steps."""
-    analyse_no_field_data()
-    analyse_field_data()
+    # analyse_no_field_data()
+    # analyse_field_data()
+
+    plot_tau_vs_temperature_for_fields()
 
 
 if __name__ == "__main__":

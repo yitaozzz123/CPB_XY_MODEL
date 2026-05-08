@@ -6,6 +6,7 @@ import numpy as np
 from analysis import autocorrelation_time
 from storage import load_simulation_data
 from matplotlib.colors import LogNorm
+from cross_analysis import analysis_plot_style
 
 
 def compute_tau_from_file(filename: str | Path) -> float:
@@ -77,7 +78,9 @@ def plot_tau_phase_diagram(
     fields = np.array(fields)
     taus = np.array(taus)
 
-    plt.figure(figsize=(8, 6))
+    style = analysis_plot_style()
+
+    fig, ax = plt.subplots(figsize=style["figsize"])
 
     sc = plt.scatter(
         fields,
@@ -107,3 +110,83 @@ def analysis_temp_vs_field():
             Path("data_with_field/tau_study"),
         ],
     )
+
+
+def plot_tau_vs_temperature_for_fields(
+    selected_fields=(0.0, 0.25, 0.5),
+    data_roots=(Path("data_with_field"),),
+    output_folder="analysis_with_field/temperature_comparison_plots",
+):
+    """Plot tau vs temperature for selected external fields."""
+    output_folder = Path(output_folder)
+    output_folder.mkdir(parents=True, exist_ok=True)
+    field_data = {field: {"T": [], "tau": []} for field in selected_fields}
+
+    for data_root in data_roots:
+        data_root = Path(data_root)
+
+        if not data_root.exists():
+            continue
+
+        for filepath in sorted(data_root.rglob("*_data.npz")):
+            try:
+                temperature, field = read_temp_and_field_from_file(filepath)
+
+                matched_field = None
+                for selected_field in selected_fields:
+                    if np.isclose(field, selected_field, atol=1e-6):
+                        matched_field = selected_field
+                        break
+
+                if matched_field is None:
+                    continue
+
+                tau = compute_tau_from_file(filepath)
+
+                field_data[matched_field]["T"].append(temperature)
+                field_data[matched_field]["tau"].append(tau)
+
+            except Exception as exc:
+                print(f"Skipping {filepath}: {exc}")
+
+    style = analysis_plot_style()
+
+    fig, ax = plt.subplots(figsize=style["figsize"])
+
+    for field in selected_fields:
+        temperatures = np.array(field_data[field]["T"])
+        taus = np.array(field_data[field]["tau"])
+
+        order = np.argsort(temperatures)
+
+        ax.plot(
+            temperatures[order],
+            taus[order],
+            marker="o",
+            linewidth=style["linewidth"],
+            label=rf"$h = {field}$",
+        )
+
+    ax.set_xlabel("Temperature", fontsize=style["label_size"])
+    ax.set_ylabel(r"Autocorrelation time $\tau$", fontsize=style["label_size"])
+
+    ax.set_yscale("log")
+
+    ax.set_title(
+        r"$\tau$ vs temperature for selected fields",
+        fontsize=style["title_size"],
+    )
+
+    ax.grid(True, alpha=style["grid_alpha"])
+
+    ax.tick_params(axis="both", labelsize=style["tick_size"])
+
+    ax.legend()
+
+    fig.tight_layout()
+
+    filename = output_folder / "tau_vs_temperature_selected_fields.pdf"
+
+    fig.savefig(filename, bbox_inches="tight")
+
+    plt.close(fig)
