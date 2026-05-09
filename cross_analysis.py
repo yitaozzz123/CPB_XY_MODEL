@@ -16,7 +16,7 @@ CRITICAL_TEMPERATURE = 0.88
 def analysis_plot_style() -> dict:
     """Return default style settings for analysis plots."""
     return {
-        "figsize": (3.6, 2.4),
+        "figsize": (4.2, 2.9),
         "linewidth": 1.8,
         "title_size": 14,
         "label_size": 12,
@@ -196,7 +196,7 @@ def plot_vs_external_field(
         )
 
     ax.set_xlabel(
-        r"$k_B T / J$",
+        r"$h/J$",
         fontsize=style["label_size"],
     )
 
@@ -306,7 +306,7 @@ def plot_vs_external_field_by_temperature(
         )
 
     ax.set_xlabel(
-        r"$k_B T / J$",
+        r"$h/J$",
         fontsize=style["label_size"],
     )
 

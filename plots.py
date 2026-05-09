@@ -16,7 +16,7 @@ from paths import (
 def default_plot_style() -> dict:
     """Return the default style settings used by simulation plots."""
     return {
-        "figsize": (10, 4),
+        "figsize": (4.5, 2.9),
         "linewidth": 1.8,
         "title_size": 14,
         "label_size": 12,
@@ -234,15 +234,24 @@ def make_vortex_count_figure(data, style: dict | None = None):
     ax.plot(
         sweeps,
         -data.n_antivortices,
-        label="Left-handed",
+        label="Left-handed vortices",
         linewidth=style["linewidth"],
         linestyle="--",
     )
+
     ax.plot(
         sweeps,
         difference,
         label="Difference",
         linewidth=style["linewidth"],
+        linestyle=":",
+    )
+
+    ax.axhline(
+        0,
+        color="black",
+        linewidth=1.0,
+        alpha=0.5,
     )
 
     # ax.set_title("Vortices and antivortices vs sweep", fontsize=style["title_size"])
