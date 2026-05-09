@@ -94,8 +94,8 @@ def plot_tau_phase_diagram(
     )
 
     plt.colorbar(sc, label=r"$\tau$")
-    plt.xlabel("External field h")
-    plt.ylabel("Temperature T")
+    plt.xlabel(r"$h/J$")
+    plt.ylabel(r"$k_B T/J$")
     plt.title(r"Relaxation time $\tau(T, h)$")
 
     plt.tight_layout()
@@ -167,15 +167,10 @@ def plot_tau_vs_temperature_for_fields(
             label=rf"$h = {field}$",
         )
 
-    ax.set_xlabel("Temperature", fontsize=style["label_size"])
+    ax.set_xlabel(r"$k_B T / J$", fontsize=style["label_size"])
     ax.set_ylabel(r"Autocorrelation time $\tau$", fontsize=style["label_size"])
 
     ax.set_yscale("log")
-
-    ax.set_title(
-        r"$\tau$ vs temperature for selected fields",
-        fontsize=style["title_size"],
-    )
 
     ax.grid(True, alpha=style["grid_alpha"])
 

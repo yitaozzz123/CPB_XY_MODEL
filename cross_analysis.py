@@ -16,7 +16,7 @@ CRITICAL_TEMPERATURE = 0.88
 def analysis_plot_style() -> dict:
     """Return default style settings for analysis plots."""
     return {
-        "figsize": (5, 3.5),
+        "figsize": (3.6, 2.4),
         "linewidth": 1.8,
         "title_size": 14,
         "label_size": 12,
@@ -122,11 +122,20 @@ def plot_vs_temperature(
             label=f"N={lattice_size}",
         )
 
-    ax.set_xlabel("Temperature")
-    ax.set_ylabel(observable)
+    ax.set_xlabel(
+        r"$k_B T / J$",
+        fontsize=style["label_size"],
+    )
+
+    ax.set_ylabel(
+        observable_ylabel(observable),
+        fontsize=style["label_size"],
+    )
+
+    ax.tick_params(axis="both", labelsize=style["tick_size"])
     if logy:
         ax.set_yscale("log")
-    ax.set_title(f"{observable} vs temperature")
+    # ax.set_title(f"{observable} vs temperature")
     ax.axvline(
         x=CRITICAL_TEMPERATURE,
         color="red",
@@ -186,9 +195,18 @@ def plot_vs_external_field(
             label=f"N={lattice_size}",
         )
 
-    ax.set_xlabel("External field")
-    ax.set_ylabel(observable)
-    ax.set_title(f"{observable} vs external field")
+    ax.set_xlabel(
+        r"$k_B T / J$",
+        fontsize=style["label_size"],
+    )
+
+    ax.set_ylabel(
+        observable_ylabel(observable),
+        fontsize=style["label_size"],
+    )
+
+    ax.tick_params(axis="both", labelsize=style["tick_size"])
+    # ax.set_title(f"{observable} vs external field")
     ax.grid(True, alpha=0.3)
     ax.legend()
     fig.tight_layout()
@@ -287,11 +305,20 @@ def plot_vs_external_field_by_temperature(
             label=f"T={temperature:.2f}",
         )
 
-    ax.set_xlabel("External field")
-    ax.set_ylabel(observable)
+    ax.set_xlabel(
+        r"$k_B T / J$",
+        fontsize=style["label_size"],
+    )
+
+    ax.set_ylabel(
+        observable_ylabel(observable),
+        fontsize=style["label_size"],
+    )
+
+    ax.tick_params(axis="both", labelsize=style["tick_size"])
     if logy:
         ax.set_yscale("log")
-    ax.set_title(f"{observable} vs external field, N={lattice_size}")
+    # ax.set_title(f"{observable} vs external field, N={lattice_size}")
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=8)
     fig.tight_layout()
@@ -340,3 +367,18 @@ def make_field_temperature_comparison_plots(
         output_folder=output_folder,
         logy=True,
     )
+
+
+def observable_ylabel(observable: str) -> str:
+    """Return publication-quality y-axis labels."""
+
+    labels = {
+        "energy_per_spin": r"$e/J$",
+        "mean_absolute_spin": r"$\langle |m| \rangle$",
+        "magnetic_susceptibility_per_spin": r"$J \chi_m$",
+        "specific_heat_per_spin": r"$C/k_B$",
+        "mean_vortex_density": r"$\rho_v$",
+        "tau": r"$\tau$",
+    }
+
+    return labels.get(observable, observable)

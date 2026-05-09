@@ -158,7 +158,7 @@ def make_energy_figure(data, style: dict | None = None):
 
     ax.set_title("Energy per spin", fontsize=style["title_size"])
     ax.set_xlabel("Sweep", fontsize=style["label_size"])
-    ax.set_ylabel("E / N", fontsize=style["label_size"])
+    ax.set_ylabel(r"$E/(N J)$", fontsize=style["label_size"])
     ax.grid(True, alpha=style["grid_alpha"])
     ax.tick_params(axis="both", labelsize=style["tick_size"])
 
@@ -226,7 +226,7 @@ def make_vortex_count_figure(data, style: dict | None = None):
     ax.plot(
         sweeps,
         data.n_vortices,
-        label="vortices (+1)",
+        label="Right-handed vortices",
         linewidth=style["linewidth"],
         linestyle="-",
     )
@@ -234,18 +234,18 @@ def make_vortex_count_figure(data, style: dict | None = None):
     ax.plot(
         sweeps,
         -data.n_antivortices,
-        label="antivortices (-1)",
+        label="Left-handed",
         linewidth=style["linewidth"],
         linestyle="--",
     )
     ax.plot(
         sweeps,
         difference,
-        label="vortices - antivortices",
+        label="Difference",
         linewidth=style["linewidth"],
     )
 
-    ax.set_title("Vortices and antivortices vs sweep", fontsize=style["title_size"])
+    # ax.set_title("Vortices and antivortices vs sweep", fontsize=style["title_size"])
     ax.set_xlabel("Sweep", fontsize=style["label_size"])
     ax.set_ylabel("Count", fontsize=style["label_size"])
     ax.legend()
