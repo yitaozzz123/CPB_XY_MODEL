@@ -219,13 +219,15 @@ def make_vortex_count_figure(data, style: dict | None = None):
 
     sweeps = np.arange(len(data.n_vortices))
 
-    difference = np.array(data.n_vortices) - np.array(data.n_antivortices)
+    n_vortices = np.array(data.n_vortices)
+    n_antivortices = np.array(data.n_antivortices)
+    difference = n_vortices - n_antivortices
 
     fig, ax = plt.subplots(figsize=style["figsize"])
 
     ax.plot(
         sweeps,
-        data.n_vortices,
+        n_vortices,
         label="Right-handed vortices",
         linewidth=style["linewidth"],
         linestyle="-",
@@ -233,7 +235,7 @@ def make_vortex_count_figure(data, style: dict | None = None):
 
     ax.plot(
         sweeps,
-        -data.n_antivortices,
+        -n_antivortices,
         label="Left-handed vortices",
         linewidth=style["linewidth"],
         linestyle="--",
