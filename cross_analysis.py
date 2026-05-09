@@ -135,7 +135,6 @@ def plot_vs_temperature(
     ax.tick_params(axis="both", labelsize=style["tick_size"])
     if logy:
         ax.set_yscale("log")
-    # ax.set_title(f"{observable} vs temperature")
     ax.axvline(
         x=CRITICAL_TEMPERATURE,
         color="red",
@@ -206,7 +205,6 @@ def plot_vs_external_field(
     )
 
     ax.tick_params(axis="both", labelsize=style["tick_size"])
-    # ax.set_title(f"{observable} vs external field")
     ax.grid(True, alpha=0.3)
     ax.legend()
     fig.tight_layout()
@@ -318,7 +316,6 @@ def plot_vs_external_field_by_temperature(
     ax.tick_params(axis="both", labelsize=style["tick_size"])
     if logy:
         ax.set_yscale("log")
-    # ax.set_title(f"{observable} vs external field, N={lattice_size}")
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=8)
     fig.tight_layout()

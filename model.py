@@ -30,7 +30,7 @@ class XYMonteCarlo:
         self.n_particles = n_particles_1d**self.n_dim
         self.transition_counter = 0
         self.boltzmann_constant = 1.0
-        self.J = 1.0
+        self.J = 1.0  # XY coupling constant in natural units.
 
         self.nearest_neighbor_offsets = self.nearest_neighbor_offsets()
         self.state = self.initialize_state()

@@ -107,27 +107,3 @@ def simulation_data_filename(
         filename += "_h_0.00"
 
     return folder / f"{filename}_data.npz"
-
-
-def critical_temperature_study_data_filename(
-    model,
-    force_field_folder: bool = False,
-) -> Path:
-    """Return the filename used to store critical temperature study simulation data."""
-
-    folder = (
-        data_folder(
-            model,
-            force_field_folder=force_field_folder,
-        )
-        / "tau_study"
-    )
-
-    folder.mkdir(parents=True, exist_ok=True)
-
-    filename = base_filename(model)
-
-    if force_field_folder and not has_external_field(model):
-        filename += "_h_0.00"
-
-    return folder / f"{filename}_data.npz"

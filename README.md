@@ -126,7 +126,7 @@ These folders contain:
 ## Check saved data
 
 ```bash
-python check_npz.py
+python extra/check_npz.py
 ```
 
 Checks whether all saved simulation files contain the required observables.
@@ -136,7 +136,7 @@ Checks whether all saved simulation files contain the required observables.
 ## Run autocorrelation diagnostics
 
 ```bash
-python tau_diagnostic.py
+python extra/tau_diagnostic.py
 ```
 
 Detects simulations with problematic autocorrelation times or block sizes.

@@ -25,10 +25,10 @@ def main() -> None:
         run_script("main_simulations.py")
 
     print("=== Checking saved data ===")
-    run_script("check_npz.py")
+    run_script("extra/check_npz.py")
 
     print("=== Running autocorrelation diagnostics ===")
-    run_script("tau_diagnostic.py")
+    run_script("extra/tau_diagnostic.py")
 
     print("=== Running analysis ===")
     run_script("main_analysis.py")

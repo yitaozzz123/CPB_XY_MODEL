@@ -254,7 +254,6 @@ def make_vortex_count_figure(data, style: dict | None = None):
         alpha=0.5,
     )
 
-    # ax.set_title("Vortices and antivortices vs sweep", fontsize=style["title_size"])
     ax.set_xlabel("Sweep", fontsize=style["label_size"])
     ax.set_ylabel("Count", fontsize=style["label_size"])
     ax.legend()
