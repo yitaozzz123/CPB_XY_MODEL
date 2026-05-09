@@ -164,11 +164,11 @@ def plot_tau_vs_temperature_for_fields(
             taus[order],
             marker="o",
             linewidth=style["linewidth"],
-            label=rf"$h = {field}$",
+            label=rf"$h/J = {field}$",
         )
 
     ax.set_xlabel(r"$k_B T / J$", fontsize=style["label_size"])
-    ax.set_ylabel(r"Autocorrelation time $\tau$", fontsize=style["label_size"])
+    ax.set_ylabel(r"$\tau$", fontsize=style["label_size"])
 
     ax.set_yscale("log")
 
